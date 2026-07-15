@@ -1,6 +1,10 @@
 {
   "name": "bookshelf-prototype",
   "version": "0.2.0",
+  "description": "Windows PCとiPhoneのLAN連携で使う個人向け蔵書管理アプリ",
+  "author": "Yuta Tomida",
+  "license": "MIT",
+  "repository": "https://github.com/tmd-0x5a/hondana-catalog.git",
   "private": true,
   "type": "module",
   "main": "electron/main.mjs",
