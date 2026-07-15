@@ -1,0 +1,65 @@
+{
+  "name": "bookshelf-prototype",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.mjs",
+  "scripts": {
+    "dev": "vite",
+    "server": "node server/index.mjs",
+    "app": "npm run build && node server/index.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "desktop": "npm run build && electron electron/main.mjs",
+    "dist:win": "npm run build && electron-builder --win portable --x64"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "5.0.4",
+    "@zxing/browser": "^0.2.0",
+    "@zxing/library": "^0.22.0",
+    "express": "^5.2.1",
+    "fast-xml-parser": "^5.10.0",
+    "lucide-react": "^1.24.0",
+    "multer": "^2.2.0",
+    "qrcode": "^1.5.4",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "sharp": "^0.35.3",
+    "vite": "6.4.2"
+  },
+  "devDependencies": {
+    "electron": "43.1.1",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "jp.local.hondana.catalog",
+    "productName": "本棚カタログ",
+    "artifactName": "Hondana-Catalog-Portable-${version}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "build/icon.png",
+      "server/**/*",
+      "src/sampleBooks.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "data",
+        "to": "seed-data",
+        "filter": ["**/*"]
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/sharp/**/*",
+      "node_modules/@img/**/*"
+    ],
+    "win": {
+      "target": ["portable"],
+      "icon": "build/icon.ico"
+    }
+  }
+}
