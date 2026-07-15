@@ -13,7 +13,15 @@ import QRCode from "qrcode";
 import sharp from "sharp";
 
 import { sampleBooks } from "../src/sampleBooks.js";
+import {
+  applyBookDefaults,
+  inferBookClassification,
+  normalizedSeriesName,
+  parseVolumeNumber,
+} from "./book-model.mjs";
 import { normalizeIsbn, stripIsbn, validIsbn13 } from "./isbn.mjs";
+import { createLibraryStore } from "./library-store.mjs";
+import { buildOfflineLibraryHtml } from "./offline-library.mjs";
 
 const {
   BarcodeFormat,
@@ -28,10 +36,8 @@ const {
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST_DIR = process.env.HONDANA_DIST_DIR || path.join(ROOT_DIR, "dist");
 const DATA_DIR = process.env.HONDANA_DATA_DIR || path.join(ROOT_DIR, "data");
-const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
-const COVER_DIR = path.join(DATA_DIR, "covers");
-const BOOKS_FILE = path.join(DATA_DIR, "books.json");
-const HISTORY_FILE = path.join(DATA_DIR, "uploads.json");
+const libraryStore = createLibraryStore({ dataDir: DATA_DIR, seedBooks: sampleBooks });
+const { uploadDir: UPLOAD_DIR, coverDir: COVER_DIR } = libraryStore.paths;
 const PORT = Number(process.env.PORT || 8080);
 
 const app = express();
@@ -55,254 +61,17 @@ app.use(express.json({ limit: "1mb" }));
 app.use("/uploads", express.static(UPLOAD_DIR, { maxAge: "1d" }));
 app.use("/covers", express.static(COVER_DIR, { maxAge: "30d" }));
 
-await initializeData();
+await libraryStore.initialize();
 
-function clone(value) {
-  return JSON.parse(JSON.stringify(value));
-}
-
-async function initializeData() {
-  await fsp.mkdir(UPLOAD_DIR, { recursive: true });
-  await fsp.mkdir(COVER_DIR, { recursive: true });
-  if (!fs.existsSync(BOOKS_FILE)) {
-    await writeJson(BOOKS_FILE, sampleBooks);
-  }
-  if (!fs.existsSync(HISTORY_FILE)) {
-    await writeJson(HISTORY_FILE, []);
-  }
-}
-
-async function readJson(file, fallback) {
-  try {
-    return JSON.parse(await fsp.readFile(file, "utf8"));
-  } catch (error) {
-    if (error.code === "ENOENT") return clone(fallback);
-    throw error;
-  }
-}
-
-async function writeJson(file, value) {
-  await fsp.writeFile(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-}
-
-/**
- * 店頭へ持ち出せる自己完結HTMLを生成する。
- * JSONをscript要素へ埋め込むため、タグ終端やJavaScriptの行区切りとして解釈される文字を先に逃がす。
- */
-function buildOfflineLibraryHtml(snapshot) {
-  const payload = JSON.stringify(snapshot)
-    .replace(/</g, "\\u003c")
-    .replace(/\u2028/g, "\\u2028")
-    .replace(/\u2029/g, "\\u2029");
-
-  return `<!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#151813">
-  <title>持ち出し本棚</title>
-  <style>
-    :root { color-scheme: dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #11130f; color: #ece5d6; }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: #11130f; }
-    header { padding: max(18px, env(safe-area-inset-top)) 18px 17px; border-bottom: 1px solid #34372d; background: #181b16; }
-    header span, header strong { display: block; }
-    header strong { font-size: 17px; }
-    header span { margin-top: 4px; color: #9c9587; font-size: 11px; }
-    main { width: min(100%, 680px); margin: 0 auto; padding: 20px 16px calc(28px + env(safe-area-inset-bottom)); }
-    .summary { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-bottom: 17px; }
-    .summary p { margin: 0; color: #b6ab92; font-size: 11px; }
-    .summary strong { display: block; margin-top: 3px; color: #eee3ca; font-size: 28px; }
-    .badge { padding: 7px 9px; border: 1px solid #47604a; border-radius: 6px; color: #a9c3a4; font-size: 10px; }
-    .search { height: 50px; display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 8px; padding: 0 13px; border: 1px solid #5a5548; border-radius: 7px; background: #1c1f19; }
-    .search svg { color: #bda76c; }
-    input { width: 100%; border: 0; outline: 0; background: transparent; color: #f2ecdf; font: inherit; font-size: 16px; }
-    input::placeholder { color: #777266; }
-    #clear { min-width: 38px; min-height: 38px; border: 0; background: transparent; color: #aaa294; font-size: 22px; }
-    .meta { min-height: 35px; padding: 11px 2px 8px; color: #958d7f; font-size: 11px; }
-    .notice { margin-bottom: 10px; padding: 12px; border: 1px solid #925e43; border-radius: 7px; background: #35231a; color: #e6c093; font-weight: 700; font-size: 12px; }
-    #results { display: grid; border-top: 1px solid #34372d; }
-    article { min-width: 0; padding: 13px 2px; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; border-bottom: 1px solid #34372d; }
-    .mark { width: 30px; height: 38px; display: grid; place-items: center; border-radius: 3px 5px 5px 3px; background: #5b6048; color: #f1e6c6; font-size: 14px; font-weight: 700; }
-    article strong, article span, article small { display: block; overflow-wrap: anywhere; }
-    article strong { color: #eee7da; font-size: 14px; line-height: 1.45; }
-    article span { margin-top: 3px; color: #aaa191; font-size: 11px; }
-    article small { margin-top: 5px; color: #879c82; font-size: 10px; }
-    .empty { padding: 42px 16px; color: #878174; text-align: center; font-size: 12px; line-height: 1.8; }
-  </style>
-</head>
-<body>
-  <header><strong>持ち出し本棚</strong><span>このファイルだけで検索できます</span></header>
-  <main>
-    <div class="summary"><p>保存された蔵書<strong id="count"></strong></p><div class="badge">オフライン</div></div>
-    <label class="search" aria-label="蔵書検索">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
-      <input id="query" autocomplete="off" inputmode="search" placeholder="タイトル・著者・ISBN">
-      <button id="clear" type="button" aria-label="検索を消す">×</button>
-    </label>
-    <div class="meta" id="meta"></div>
-    <div id="notice"></div>
-    <section id="results"></section>
-  </main>
-  <script>
-    const snapshot = ${payload};
-    const books = Array.isArray(snapshot.books) ? snapshot.books : [];
-    const query = document.getElementById("query");
-    const results = document.getElementById("results");
-    const meta = document.getElementById("meta");
-    const notice = document.getElementById("notice");
-    document.getElementById("count").textContent = books.length + "冊";
-    const normalize = (value) => String(value || "").normalize("NFKC").toLocaleLowerCase("ja");
-    const isbn = (value) => String(value || "").replace(/[^0-9X]/gi, "").toUpperCase();
-    const synced = snapshot.syncedAt ? new Date(snapshot.syncedAt).toLocaleString("ja-JP") : "不明";
-
-    function addBook(book) {
-      const item = document.createElement("article");
-      const mark = document.createElement("div");
-      const body = document.createElement("div");
-      const title = document.createElement("strong");
-      const author = document.createElement("span");
-      const detail = document.createElement("small");
-      mark.className = "mark";
-      mark.textContent = book.category === "マンガ" ? "漫" : "本";
-      title.textContent = book.title || "無題";
-      author.textContent = book.author || "著者不明";
-      const location = book.format === "electronic" ? (book.electronicPlatform || "電子書籍") : (book.physicalLocation || "実本");
-      detail.textContent = [book.isbn, location, book.volumeNumber ? book.volumeNumber + "巻" : ""].filter(Boolean).join(" ・ ");
-      body.append(title, author, detail);
-      item.append(mark, body);
-      results.append(item);
-    }
-
-    function render() {
-      const raw = query.value.trim();
-      const normalized = normalize(raw);
-      const isbnQuery = isbn(raw);
-      results.replaceChildren();
-      notice.replaceChildren();
-      if (!raw) {
-        meta.textContent = "保存日時 " + synced;
-        results.innerHTML = '<div class="empty">店頭でタイトル、著者名、ISBNを入力してください。<br>PCやLANへの接続は不要です。</div>';
-        return;
-      }
-      const matches = books.filter((book) => {
-        const text = normalize([book.title, book.author, book.seriesName, book.category].join(" "));
-        return text.includes(normalized) || (isbnQuery.length >= 4 && isbn(book.isbn).includes(isbnQuery));
-      }).slice(0, 50);
-      const exact = isbnQuery.length >= 10 && books.find((book) => isbn(book.isbn) === isbnQuery);
-      if (exact) {
-        const owned = document.createElement("div");
-        owned.className = "notice";
-        owned.textContent = "登録済み: " + exact.title;
-        notice.append(owned);
-      }
-      meta.textContent = matches.length ? matches.length + "件見つかりました" : "一致する蔵書はありません";
-      matches.forEach(addBook);
-      if (!matches.length) results.innerHTML = '<div class="empty">同じ本は見つかりませんでした。<br>表記違いもあるため、著者名でも確認してください。</div>';
-    }
-
-    query.addEventListener("input", render);
-    document.getElementById("clear").addEventListener("click", () => { query.value = ""; query.focus(); render(); });
-    render();
-  </script>
-</body>
-</html>`;
-}
-
-const BOOK_CATEGORIES = ["マンガ", "小説", "技術", "ビジネス", "思想・社会", "実用", "その他"];
-
-function normalizeElectronicPlatform(value = "") {
-  const platform = String(value).trim();
-  if (/^kindle$|amazon.*kindle/i.test(platform)) return "Amazon Kindle";
-  if (/^dmm|dmm.*books?/i.test(platform)) return "DMMブックス";
-  return platform;
-}
-
-function inferCategory(book = {}) {
-  if (BOOK_CATEGORIES.includes(book.category)) return book.category;
-  if (book.bookType === "manga") return "マンガ";
-
-  const text = `${book.title || ""} ${book.shelf || ""} ${(book.tags || []).join(" ")}`;
-  if (/Deep Learning|プログラミング|コンピュータ|AI|科学|技術|工学|情報処理/i.test(text)) return "技術";
-  if (/小説|文学|文芸|物語|novel/i.test(text)) return "小説";
-  if (/ビジネス|経済|経営|仕事|自己啓発/i.test(text)) return "ビジネス";
-  if (/思想|社会|政治|哲学|歴史/i.test(text)) return "思想・社会";
-  if (/実用|料理|健康|旅行|趣味|暮らし/i.test(text)) return "実用";
-  return "その他";
-}
-
-/** 保存形式の差分をここへ集約し、古いbooks.jsonも現在のUIモデルとして読めるようにする。 */
-function bookDefaults(book, index = 0) {
-  const format = book.format === "electronic" ? "electronic" : "physical";
-  const category = inferCategory(book);
-  return {
-    ...book,
-    category,
-    bookType: category === "マンガ" ? "manga" : "book",
-    format,
-    physicalLocation: book.physicalLocation || (format === "physical" ? book.shelf || "未設定" : ""),
-    electronicPlatform: normalizeElectronicPlatform(book.electronicPlatform) || (format === "electronic" ? "その他" : ""),
-    electronicUrl: book.electronicUrl || "",
-    seriesName: book.seriesName || "",
-    volumeNumber: Number(book.volumeNumber) || null,
-    reminderDate: book.reminderDate || "",
-    reminderNote: book.reminderNote || "",
-    seriesCheckedAt: book.seriesCheckedAt || "",
-    seriesLatestVolume: Number(book.seriesLatestVolume) || null,
-    seriesLatestIsbn: book.seriesLatestIsbn || "",
-    seriesLatestPublished: book.seriesLatestPublished || "",
-    seriesLatestTitle: book.seriesLatestTitle || "",
-    seriesLatestUrl: book.seriesLatestUrl || "",
-    nextVolumeNumber: Number(book.nextVolumeNumber) || null,
-    nextVolumeIsbn: book.nextVolumeIsbn || "",
-    nextVolumePublished: book.nextVolumePublished || "",
-    nextVolumeTitle: book.nextVolumeTitle || "",
-    nextVolumeUrl: book.nextVolumeUrl || "",
-    sortOrder: Number.isFinite(Number(book.sortOrder)) ? Number(book.sortOrder) : index,
-  };
-}
-
+/** 起動時に保存済みデータへ不足項目を補い、差分がある場合だけ永続化する。 */
 async function migrateBookData() {
-  const books = await readJson(BOOKS_FILE, sampleBooks);
-  const migrated = books.map((book, index) => bookDefaults(book, index));
+  const books = await libraryStore.readBooks();
+  const migrated = books.map((book, index) => applyBookDefaults(book, index));
   // 実際に差分がある初回だけ書き戻し、起動のたびにファイル更新日時を変えない。
-  if (JSON.stringify(books) !== JSON.stringify(migrated)) await writeJson(BOOKS_FILE, migrated);
+  if (JSON.stringify(books) !== JSON.stringify(migrated)) await libraryStore.saveBooks(migrated);
 }
 
 await migrateBookData();
-
-function parseVolumeNumber(value = "") {
-  const normalized = String(value).normalize("NFKC");
-  const patterns = [
-    /(?:VOL(?:UME)?\.?|第)\s*(\d+(?:\.\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s*巻/i,
-    /(?:^|[\s.:：-])(\d+(?:\.\d+)?)\s*$/,
-  ];
-  for (const pattern of patterns) {
-    const match = normalized.match(pattern);
-    if (match) return Number(match[1]);
-  }
-  return null;
-}
-
-function inferBookClassification(summary) {
-  const title = summary.title || "";
-  const label = `${summary.series || ""} ${title}`;
-  const volumeNumber = parseVolumeNumber(summary.volume || title);
-  // 外部APIに分類がない場合の補助推定。確定情報ではないため、ユーザーが後から編集できる前提にする。
-  const manga = /コミックス|コミック|漫画|ジャンプ|サンデー|マガジン|花とゆめ|ちゃお|りぼん/i.test(label)
-    || Boolean(volumeNumber && /(?:VOL(?:UME)?\.?\s*\d+|\s\d+)\s*$/i.test(title));
-  if (!manga) return { category: "その他", bookType: "book", seriesName: "", volumeNumber: null };
-  let seriesName = title
-    .replace(/\s*=.*?(?:VOL(?:UME)?\.?)\s*\d+(?:\.\d+)?\s*$/i, "")
-    .replace(/\s*=.*?\s+\d+(?:\.\d+)?\s*$/i, "")
-    .replace(/\s*(?:VOL(?:UME)?\.?|第)\s*\d+(?:\.\d+)?\s*(?:巻)?\s*$/i, "")
-    .replace(/\s+\d+(?:\.\d+)?\s*$/, "")
-    .trim();
-  if (!seriesName) seriesName = title;
-  return { category: "マンガ", bookType: "manga", seriesName, volumeNumber };
-}
 
 /** iPhone向けURLが安定するよう、家庭LANで一般的なアドレス帯を優先して選ぶ。 */
 function privateLanAddress() {
@@ -586,7 +355,7 @@ async function decodeBarcode(buffer) {
 
 /** 過去データの欠けた表紙を補う。失敗しても本棚の起動や編集は妨げない。 */
 async function backfillMissingCovers() {
-  const books = await readJson(BOOKS_FILE, sampleBooks);
+  const books = await libraryStore.readBooks();
   let changed = false;
   for (const book of books) {
     if (book.coverUrl || !book.metadataSource) continue;
@@ -603,7 +372,7 @@ async function backfillMissingCovers() {
       // Keep the book usable even when a cover is unavailable.
     }
   }
-  if (changed) await writeJson(BOOKS_FILE, books);
+  if (changed) await libraryStore.saveBooks(books);
 }
 
 function extensionFor(file) {
@@ -629,11 +398,11 @@ async function saveImage(file) {
  */
 async function addOrUpdateBook(isbn, uploadRecord = null) {
   const metadata = await lookupBook(isbn);
-  const books = await readJson(BOOKS_FILE, sampleBooks);
+  const books = await libraryStore.readBooks();
   const existingIndex = books.findIndex((book) => stripIsbn(book.isbn) === isbn);
   const existing = existingIndex >= 0 ? books[existingIndex] : null;
   const firstSortOrder = books.length ? Math.min(...books.map((item) => Number(item.sortOrder) || 0)) : 0;
-  const book = bookDefaults({
+  const book = applyBookDefaults({
     ...(existing || {}),
     id: existing?.id || crypto.randomUUID(),
     ...metadata,
@@ -658,16 +427,16 @@ async function addOrUpdateBook(isbn, uploadRecord = null) {
 
   if (existingIndex >= 0) books.splice(existingIndex, 1);
   books.unshift(book);
-  await writeJson(BOOKS_FILE, books);
+  await libraryStore.saveBooks(books);
   return { book, duplicate: existingIndex >= 0 };
 }
 
 async function saveUploadRecord(record) {
-  const history = await readJson(HISTORY_FILE, []);
+  const history = await libraryStore.readUploads();
   const index = history.findIndex((item) => item.id === record.id);
   if (index >= 0) history[index] = record;
   else history.unshift(record);
-  await writeJson(HISTORY_FILE, history.slice(0, 100));
+  await libraryStore.saveUploads(history.slice(0, 100));
   return record;
 }
 
@@ -696,13 +465,6 @@ function firstText(value) {
   const first = asArray(value)[0];
   if (first && typeof first === "object") return String(first["#text"] || "");
   return String(first || "");
-}
-
-function normalizedSeriesName(value = "") {
-  return String(value)
-    .normalize("NFKC")
-    .toLocaleLowerCase("ja")
-    .replace(/[\s・:：=＝「」『』〈〉《》～〜~\-—_]/g, "");
 }
 
 function itemIsbn(item) {
@@ -861,7 +623,7 @@ app.get("/api/config", async (_request, response, next) => {
 
 app.get("/api/offline-library", async (_request, response, next) => {
   try {
-    const books = await readJson(BOOKS_FILE, sampleBooks);
+    const books = await libraryStore.readBooks();
     const snapshot = {
       syncedAt: new Date().toISOString(),
       books: books.map((book) => ({
@@ -890,7 +652,7 @@ app.get("/api/offline-library", async (_request, response, next) => {
 
 app.get("/api/books", async (_request, response, next) => {
   try {
-    response.json({ books: await readJson(BOOKS_FILE, sampleBooks) });
+    response.json({ books: await libraryStore.readBooks() });
   } catch (error) {
     next(error);
   }
@@ -910,9 +672,9 @@ app.post("/api/books", async (request, response, next) => {
   try {
     const title = String(request.body.title || "").trim();
     if (!title) return response.status(400).json({ error: "タイトルを入力してください。" });
-    const books = await readJson(BOOKS_FILE, sampleBooks);
+    const books = await libraryStore.readBooks();
     const firstSortOrder = books.length ? Math.min(...books.map((book) => Number(book.sortOrder) || 0)) : 0;
-    const book = bookDefaults({
+    const book = applyBookDefaults({
       id: crypto.randomUUID(),
       title,
       author: String(request.body.author || "著者情報なし"),
@@ -943,7 +705,7 @@ app.post("/api/books", async (request, response, next) => {
       sprite: null,
     });
     books.unshift(book);
-    await writeJson(BOOKS_FILE, books);
+    await libraryStore.saveBooks(books);
     response.status(201).json({ book });
   } catch (error) {
     next(error);
@@ -952,7 +714,7 @@ app.post("/api/books", async (request, response, next) => {
 
 app.patch("/api/books/:id", async (request, response, next) => {
   try {
-    const books = await readJson(BOOKS_FILE, sampleBooks);
+    const books = await libraryStore.readBooks();
     const index = books.findIndex((book) => String(book.id) === request.params.id);
     if (index < 0) return response.status(404).json({ error: "本が見つかりません。" });
     const allowed = [
@@ -984,8 +746,8 @@ app.patch("/api/books/:id", async (request, response, next) => {
       books[index].bookType = request.body.category === "マンガ" ? "manga" : "book";
     }
     books[index].updatedAt = new Date().toISOString();
-    books[index] = bookDefaults(books[index], index);
-    await writeJson(BOOKS_FILE, books);
+    books[index] = applyBookDefaults(books[index], index);
+    await libraryStore.saveBooks(books);
     response.json({ book: books[index] });
   } catch (error) {
     next(error);
@@ -997,14 +759,14 @@ app.post("/api/books/reorder", async (request, response, next) => {
     const ids = Array.isArray(request.body.ids) ? request.body.ids.map(String) : [];
     if (!ids.length) return response.status(400).json({ error: "並び順が空です。" });
     const order = new Map(ids.map((id, index) => [id, index]));
-    const books = await readJson(BOOKS_FILE, sampleBooks);
+    const books = await libraryStore.readBooks();
     const trailing = books.length;
     books.forEach((book, index) => {
       book.sortOrder = order.has(String(book.id)) ? order.get(String(book.id)) : trailing + index;
       book.updatedAt = new Date().toISOString();
     });
     books.sort((a, b) => a.sortOrder - b.sortOrder);
-    await writeJson(BOOKS_FILE, books);
+    await libraryStore.saveBooks(books);
     response.json({ books });
   } catch (error) {
     next(error);
@@ -1017,7 +779,7 @@ app.post("/api/books/reorder", async (request, response, next) => {
  */
 async function checkAndPersistSeries(seriesName) {
   const catalog = await fetchSeriesCatalog(seriesName);
-  const books = await readJson(BOOKS_FILE, sampleBooks);
+  const books = await libraryStore.readBooks();
   const seriesKey = normalizedSeriesName(seriesName);
   const matching = books.filter((book) => normalizedSeriesName(book.seriesName) === seriesKey);
   const ownedMax = Math.max(0, ...matching.map((book) => Number(book.volumeNumber) || 0));
@@ -1039,7 +801,7 @@ async function checkAndPersistSeries(seriesName) {
     book.nextVolumeUrl = nextAvailable?.url || "";
     book.updatedAt = checkedAt;
   }
-  if (matching.length) await writeJson(BOOKS_FILE, books);
+  if (matching.length) await libraryStore.saveBooks(books);
 
   return {
     seriesName,
@@ -1069,7 +831,7 @@ app.post("/api/series/check", async (request, response, next) => {
 
 app.post("/api/series/check-all", async (_request, response, next) => {
   try {
-    const books = await readJson(BOOKS_FILE, sampleBooks);
+    const books = await libraryStore.readBooks();
     const seriesNames = [...new Set(
       books
         .filter((book) => (book.category === "マンガ" || book.bookType === "manga") && book.seriesName)
@@ -1093,7 +855,7 @@ app.post("/api/series/check-all", async (_request, response, next) => {
 
 app.post("/api/books/:id/refresh-cover", async (request, response, next) => {
   try {
-    const books = await readJson(BOOKS_FILE, sampleBooks);
+    const books = await libraryStore.readBooks();
     const index = books.findIndex((book) => String(book.id) === request.params.id);
     if (index < 0) return response.status(404).json({ error: "本が見つかりません。" });
     const isbn = normalizeIsbn(books[index].isbn);
@@ -1103,7 +865,7 @@ app.post("/api/books/:id/refresh-cover", async (request, response, next) => {
     books[index].coverUrl = coverUrl;
     books[index].coverSource = "国立国会図書館・書影API等";
     books[index].updatedAt = new Date().toISOString();
-    await writeJson(BOOKS_FILE, books);
+    await libraryStore.saveBooks(books);
     response.json({ book: books[index] });
   } catch (error) {
     next(error);
@@ -1112,10 +874,10 @@ app.post("/api/books/:id/refresh-cover", async (request, response, next) => {
 
 app.delete("/api/books/:id", async (request, response, next) => {
   try {
-    const books = await readJson(BOOKS_FILE, sampleBooks);
+    const books = await libraryStore.readBooks();
     const nextBooks = books.filter((book) => String(book.id) !== request.params.id);
     if (nextBooks.length === books.length) return response.status(404).json({ error: "本が見つかりません。" });
-    await writeJson(BOOKS_FILE, nextBooks);
+    await libraryStore.saveBooks(nextBooks);
     response.status(204).end();
   } catch (error) {
     next(error);
@@ -1125,7 +887,7 @@ app.delete("/api/books/:id", async (request, response, next) => {
 app.get("/api/uploads", async (request, response, next) => {
   try {
     const limit = Math.min(Math.max(Number(request.query.limit) || 10, 1), 100);
-    const uploads = await readJson(HISTORY_FILE, []);
+    const uploads = await libraryStore.readUploads();
     const recentSuccessCutoff = Date.now() - 60 * 1000;
     const visibleUploads = uploads.filter((item) => {
       if (item.dismissedAt) return false;
@@ -1140,11 +902,11 @@ app.get("/api/uploads", async (request, response, next) => {
 
 app.post("/api/uploads/:id/dismiss", async (request, response, next) => {
   try {
-    const history = await readJson(HISTORY_FILE, []);
+    const history = await libraryStore.readUploads();
     const index = history.findIndex((item) => item.id === request.params.id);
     if (index < 0) return response.status(404).json({ error: "アップロード履歴が見つかりません。" });
     history[index] = { ...history[index], dismissedAt: new Date().toISOString() };
-    await writeJson(HISTORY_FILE, history);
+    await libraryStore.saveUploads(history);
     response.status(204).end();
   } catch (error) {
     next(error);
@@ -1194,7 +956,7 @@ app.post("/api/upload", upload.single("image"), async (request, response, next) 
 
 app.post("/api/uploads/:id/isbn", async (request, response, next) => {
   try {
-    const history = await readJson(HISTORY_FILE, []);
+    const history = await libraryStore.readUploads();
     const record = history.find((item) => item.id === request.params.id);
     if (!record) return response.status(404).json({ error: "アップロード画像が見つかりません。" });
     const result = await finishUploadWithIsbn(record, request.body.isbn);
@@ -1206,7 +968,7 @@ app.post("/api/uploads/:id/isbn", async (request, response, next) => {
 
 app.post("/api/uploads/:id/retry", async (request, response, next) => {
   try {
-    const history = await readJson(HISTORY_FILE, []);
+    const history = await libraryStore.readUploads();
     const record = history.find((item) => item.id === request.params.id);
     if (!record) return response.status(404).json({ error: "アップロード画像が見つかりません。" });
     const image = await fsp.readFile(path.join(UPLOAD_DIR, record.storedFilename));

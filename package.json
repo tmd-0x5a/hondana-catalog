@@ -9,7 +9,7 @@
   "type": "module",
   "main": "electron/main.mjs",
   "scripts": {
-    "test": "node --test test/isbn.test.mjs",
+    "test": "node --test test/book-model.test.mjs test/isbn.test.mjs test/library-model.test.mjs test/library-store.test.mjs test/offline-library.test.mjs",
     "dev": "vite",
     "server": "node server/index.mjs",
     "app": "npm run build && node server/index.mjs",
