@@ -1,5 +1,13 @@
 export const BOOK_CATEGORIES = ["マンガ", "小説", "技術", "ビジネス", "思想・社会", "実用", "その他"];
 
+const CATEGORY_INFERENCE_RULES = [
+  { category: "技術", keywords: /Deep Learning|プログラミング|コンピュータ|AI|科学|技術|工学|情報処理/i },
+  { category: "小説", keywords: /小説|文学|文芸|物語|novel/i },
+  { category: "ビジネス", keywords: /ビジネス|経済|経営|仕事|自己啓発/i },
+  { category: "思想・社会", keywords: /思想|社会|政治|哲学|歴史/i },
+  { category: "実用", keywords: /実用|料理|健康|旅行|趣味|暮らし/i },
+];
+
 export function normalizeElectronicPlatform(value = "") {
   const platform = String(value).trim();
   if (/^kindle$|amazon.*kindle/i.test(platform)) return "Amazon Kindle";
@@ -7,17 +15,31 @@ export function normalizeElectronicPlatform(value = "") {
   return platform;
 }
 
-export function inferCategory(book = {}) {
-  if (BOOK_CATEGORIES.includes(book.category)) return book.category;
-  if (book.bookType === "manga") return "マンガ";
+export function isSupportedCategory(category) {
+  return BOOK_CATEGORIES.includes(String(category || "").trim());
+}
 
-  const text = `${book.title || ""} ${book.shelf || ""} ${(book.tags || []).join(" ")}`;
-  if (/Deep Learning|プログラミング|コンピュータ|AI|科学|技術|工学|情報処理/i.test(text)) return "技術";
-  if (/小説|文学|文芸|物語|novel/i.test(text)) return "小説";
-  if (/ビジネス|経済|経営|仕事|自己啓発/i.test(text)) return "ビジネス";
-  if (/思想|社会|政治|哲学|歴史/i.test(text)) return "思想・社会";
-  if (/実用|料理|健康|旅行|趣味|暮らし/i.test(text)) return "実用";
-  return "その他";
+function hasLegacyMangaClassification(book) {
+  return book.bookType === "manga";
+}
+
+function categorySearchText(book) {
+  const tags = Array.isArray(book.tags) ? book.tags : [];
+  return [book.title, book.shelf, ...tags].filter(Boolean).join(" ");
+}
+
+/**
+ * カテゴリの決定順を一か所に固定する。
+ * ユーザーが保存した値を最優先し、旧形式の互換情報、最後に補助的な語句推定を使う。
+ */
+export function inferCategory(book = {}) {
+  const savedCategory = String(book.category || "").trim();
+  if (isSupportedCategory(savedCategory)) return savedCategory;
+  if (hasLegacyMangaClassification(book)) return "マンガ";
+
+  const searchableText = categorySearchText(book);
+  const matchedRule = CATEGORY_INFERENCE_RULES.find((rule) => rule.keywords.test(searchableText));
+  return matchedRule?.category || "その他";
 }
 
 /** 古いbooks.jsonを含む保存データを、現在のUIが扱う一つの形へ正規化する。 */

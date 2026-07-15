@@ -4,9 +4,17 @@ import test from "node:test";
 import {
   applyBookDefaults,
   inferBookClassification,
+  inferCategory,
   normalizedSeriesName,
   parseVolumeNumber,
 } from "../server/book-model.mjs";
+
+test("カテゴリは保存値、旧マンガ分類、キーワード推定の順で決める", () => {
+  assert.equal(inferCategory({ category: "小説", title: "AI入門" }), "小説");
+  assert.equal(inferCategory({ bookType: "manga", title: "分類なし" }), "マンガ");
+  assert.equal(inferCategory({ title: "実践プログラミング" }), "技術");
+  assert.equal(inferCategory({ title: "分類できない本" }), "その他");
+});
 
 test("古い蔵書データへ現在の保存既定値を補う", () => {
   const book = applyBookDefaults({ title: "テスト", shelf: "本棚A", bookType: "manga" }, 7);
