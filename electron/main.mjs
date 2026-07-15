@@ -31,6 +31,7 @@ async function findAvailablePort(start = 8080) {
   throw new Error("本棚カタログで使用できる通信ポートが見つかりませんでした。");
 }
 
+/** 初回だけ同梱データをユーザー領域へ複製し、EXE更新で既存の本棚を上書きしない。 */
 async function prepareUserData() {
   const dataDir = path.join(app.getPath("userData"), "data");
   const booksFile = path.join(dataDir, "books.json");
@@ -55,6 +56,7 @@ function isLocalCompanionPage(url) {
   }
 }
 
+/** LAN補助画面だけをアプリ内に残し、外部URLは既定ブラウザへ隔離する。 */
 function applyNavigationPolicy(window) {
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (isLocalCompanionPage(url)) {
@@ -105,6 +107,7 @@ async function startApplication() {
   process.env.HONDANA_DATA_DIR = dataDir;
   process.env.HONDANA_DIST_DIR = path.join(app.getAppPath(), "dist");
 
+  // 保存先と配信先を確定してからサーバーを読み込み、待受完了後にだけUIを表示する。
   const serverModule = await import("../server/index.mjs");
   server = serverModule.server;
   if (!server.listening) {

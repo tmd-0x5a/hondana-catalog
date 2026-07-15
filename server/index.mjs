@@ -13,6 +13,7 @@ import QRCode from "qrcode";
 import sharp from "sharp";
 
 import { sampleBooks } from "../src/sampleBooks.js";
+import { normalizeIsbn, stripIsbn, validIsbn13 } from "./isbn.mjs";
 
 const {
   BarcodeFormat,
@@ -84,6 +85,10 @@ async function writeJson(file, value) {
   await fsp.writeFile(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+/**
+ * 店頭へ持ち出せる自己完結HTMLを生成する。
+ * JSONをscript要素へ埋め込むため、タグ終端やJavaScriptの行区切りとして解釈される文字を先に逃がす。
+ */
 function buildOfflineLibraryHtml(snapshot) {
   const payload = JSON.stringify(snapshot)
     .replace(/</g, "\\u003c")
@@ -227,6 +232,7 @@ function inferCategory(book = {}) {
   return "その他";
 }
 
+/** 保存形式の差分をここへ集約し、古いbooks.jsonも現在のUIモデルとして読めるようにする。 */
 function bookDefaults(book, index = 0) {
   const format = book.format === "electronic" ? "electronic" : "physical";
   const category = inferCategory(book);
@@ -260,6 +266,7 @@ function bookDefaults(book, index = 0) {
 async function migrateBookData() {
   const books = await readJson(BOOKS_FILE, sampleBooks);
   const migrated = books.map((book, index) => bookDefaults(book, index));
+  // 実際に差分がある初回だけ書き戻し、起動のたびにファイル更新日時を変えない。
   if (JSON.stringify(books) !== JSON.stringify(migrated)) await writeJson(BOOKS_FILE, migrated);
 }
 
@@ -283,6 +290,7 @@ function inferBookClassification(summary) {
   const title = summary.title || "";
   const label = `${summary.series || ""} ${title}`;
   const volumeNumber = parseVolumeNumber(summary.volume || title);
+  // 外部APIに分類がない場合の補助推定。確定情報ではないため、ユーザーが後から編集できる前提にする。
   const manga = /コミックス|コミック|漫画|ジャンプ|サンデー|マガジン|花とゆめ|ちゃお|りぼん/i.test(label)
     || Boolean(volumeNumber && /(?:VOL(?:UME)?\.?\s*\d+|\s\d+)\s*$/i.test(title));
   if (!manga) return { category: "その他", bookType: "book", seriesName: "", volumeNumber: null };
@@ -296,6 +304,7 @@ function inferBookClassification(summary) {
   return { category: "マンガ", bookType: "manga", seriesName, volumeNumber };
 }
 
+/** iPhone向けURLが安定するよう、家庭LANで一般的なアドレス帯を優先して選ぶ。 */
 function privateLanAddress() {
   const candidates = Object.values(os.networkInterfaces())
     .flat()
@@ -309,42 +318,6 @@ function privateLanAddress() {
     candidates[0] ||
     "127.0.0.1"
   );
-}
-
-function stripIsbn(value = "") {
-  return String(value).toUpperCase().replace(/[^0-9X]/g, "");
-}
-
-function validIsbn10(value) {
-  if (!/^\d{9}[\dX]$/.test(value)) return false;
-  const sum = [...value].reduce((total, digit, index) => {
-    const number = digit === "X" ? 10 : Number(digit);
-    return total + number * (10 - index);
-  }, 0);
-  return sum % 11 === 0;
-}
-
-function validIsbn13(value) {
-  if (!/^\d{13}$/.test(value)) return false;
-  const sum = [...value.slice(0, 12)].reduce(
-    (total, digit, index) => total + Number(digit) * (index % 2 === 0 ? 1 : 3),
-    0,
-  );
-  return (10 - (sum % 10)) % 10 === Number(value[12]);
-}
-
-function normalizeIsbn(value) {
-  const compact = stripIsbn(value);
-  if (compact.length === 13 && validIsbn13(compact)) return compact;
-  if (compact.length === 10 && validIsbn10(compact)) {
-    const firstTwelve = `978${compact.slice(0, 9)}`;
-    const sum = [...firstTwelve].reduce(
-      (total, digit, index) => total + Number(digit) * (index % 2 === 0 ? 1 : 3),
-      0,
-    );
-    return `${firstTwelve}${(10 - (sum % 10)) % 10}`;
-  }
-  throw Object.assign(new Error("正しいISBN-10またはISBN-13を入力してください。"), { status: 400 });
 }
 
 function formatDate(value = "") {
@@ -377,6 +350,7 @@ async function fetchJson(url) {
   }
 }
 
+/** リモート表紙を検証・縮小してWebPへ統一し、以後は外部APIなしで表示できるようにする。 */
 async function downloadCover(url, isbn, headers = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
@@ -393,6 +367,7 @@ async function downloadCover(url, isbn, headers = {}) {
     if (!response.ok || !response.headers.get("content-type")?.startsWith("image/")) return "";
     const image = Buffer.from(await response.arrayBuffer());
     const metadata = await sharp(image).metadata();
+    // 書影APIが返す「画像なし」の小さなプレースホルダーは表紙として保存しない。
     if (!metadata.width || !metadata.height || metadata.width < 120 || metadata.height < 160) return "";
 
     const filename = `${isbn}.webp`;
@@ -409,6 +384,7 @@ async function downloadCover(url, isbn, headers = {}) {
   }
 }
 
+/** APIが返した表紙、国会図書館、Open Libraryの順で試し、最初に使えた画像をキャッシュする。 */
 async function ensureLocalCover(isbn, preferredUrls = []) {
   const filename = `${isbn}.webp`;
   if (fs.existsSync(path.join(COVER_DIR, filename))) return `/covers/${filename}`;
@@ -472,6 +448,10 @@ async function lookupGoogleBooks(isbn) {
   };
 }
 
+/**
+ * 複数の書誌APIを統合する。片方の障害で登録全体を止めないようallSettledを使い、
+ * 日本語書誌はopenBD、説明・ページ数はGoogle Booksを優先して補完する。
+ */
 async function lookupBook(isbn) {
   const [openBdResult, googleResult] = await Promise.allSettled([
     lookupOpenBd(isbn),
@@ -505,6 +485,7 @@ async function lookupBook(isbn) {
   };
 }
 
+/** スマホ写真でバーコードが置かれやすい領域を、全体画像と複数の帯に分けて返す。 */
 function barcodeRegions(width, height) {
   const region = (topRatio, heightRatio, name) => ({
     left: 0,
@@ -538,6 +519,7 @@ function decodeBarcodePixels(data, width, height, hints) {
   return "";
 }
 
+/** 指定領域だけを回転・正規化し、ZXingへ渡す画素数を抑えながらISBNを検証する。 */
 async function decodeBarcodeRegion(oriented, region, angle, maxSize, hints, sharpen = false) {
   let pipeline = sharp(oriented)
     .extract({ left: region.left, top: region.top, width: region.width, height: region.height })
@@ -552,6 +534,10 @@ async function decodeBarcodeRegion(oriented, region, angle, maxSize, hints, shar
   return validIsbn13(compact) && (compact.startsWith("978") || compact.startsWith("979")) ? compact : "";
 }
 
+/**
+ * 典型的な配置を小さめ画像で先に試し、失敗時だけ全領域・全方向・シャープ化へ進む。
+ * 読み取り速度と、傾いた暗い写真への耐性を両立するための2段階探索になっている。
+ */
 async function decodeBarcode(buffer) {
   const hints = new Map();
   hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -598,6 +584,7 @@ async function decodeBarcode(buffer) {
   );
 }
 
+/** 過去データの欠けた表紙を補う。失敗しても本棚の起動や編集は妨げない。 */
 async function backfillMissingCovers() {
   const books = await readJson(BOOKS_FILE, sampleBooks);
   let changed = false;
@@ -636,6 +623,10 @@ async function saveImage(file) {
   return storedFilename;
 }
 
+/**
+ * ISBNを一意キーとして登録または更新する。
+ * 再取得した書誌で補完しつつ、読了状態・保管場所・手動並び順などの所蔵情報は保持する。
+ */
 async function addOrUpdateBook(isbn, uploadRecord = null) {
   const metadata = await lookupBook(isbn);
   const books = await readJson(BOOKS_FILE, sampleBooks);
@@ -680,6 +671,7 @@ async function saveUploadRecord(record) {
   return record;
 }
 
+/** 画像アップロード履歴と蔵書更新を同じISBNで完了状態へ揃える。 */
 async function finishUploadWithIsbn(record, value) {
   const isbn = normalizeIsbn(value);
   const { book, duplicate } = await addOrUpdateBook(isbn, record);
@@ -722,6 +714,7 @@ function itemIsbn(item) {
 
 const suggestionCache = new Map();
 
+/** NDL候補を重複排除・タイトル一致度順に整え、連続入力によるAPI負荷を短期キャッシュで抑える。 */
 async function fetchBookSuggestions(query) {
   const cacheKey = query.normalize("NFKC").toLocaleLowerCase("ja");
   const cached = suggestionCache.get(cacheKey);
@@ -789,6 +782,7 @@ async function fetchBookSuggestions(query) {
   }
 }
 
+/** 関連書籍の混入を避けるため、正規化後のタイトルがシリーズ名と一致する巻だけを採用する。 */
 async function fetchSeriesCatalog(seriesName) {
   const url = new URL("https://ndlsearch.ndl.go.jp/api/opensearch");
   url.searchParams.set("cnt", "100");
@@ -1017,6 +1011,10 @@ app.post("/api/books/reorder", async (request, response, next) => {
   }
 });
 
+/**
+ * 所持巻とNDLのシリーズ一覧を比較し、最初の未所持巻を新刊候補として保存する。
+ * 同シリーズの全所蔵本へ同じ確認結果を書き、どの巻を開いても表示が一致するようにする。
+ */
 async function checkAndPersistSeries(seriesName) {
   const catalog = await fetchSeriesCatalog(seriesName);
   const books = await readJson(BOOKS_FILE, sampleBooks);
@@ -1079,6 +1077,7 @@ app.post("/api/series/check-all", async (_request, response, next) => {
         .filter(Boolean),
     )];
     const results = [];
+    // 外部APIへ一度に大量接続しないよう、シリーズ単位で順番に確認する。
     for (const seriesName of seriesNames) {
       try {
         results.push(await checkAndPersistSeries(seriesName));

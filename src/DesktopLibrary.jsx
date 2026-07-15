@@ -131,6 +131,7 @@ function BookEditModal({ book, onClose, onSaved }) {
       return undefined;
     }
     const controller = new AbortController();
+    // 入力途中の検索を送らず、次の文字が来たら前回リクエストも中断する。
     const timer = window.setTimeout(async () => {
       setSuggestBusy(true);
       try {
@@ -178,6 +179,7 @@ function BookEditModal({ book, onClose, onSaved }) {
       };
       let result;
       if (isNew && String(form.isbn).replace(/[^0-9X]/gi, "").length >= 10) {
+        // ISBN登録で表紙を取得した後、ユーザーがフォームへ入力した所蔵情報を上書きして確定する。
         const imported = await requestJson("/api/isbn", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -353,6 +355,7 @@ export function DesktopLibrary() {
     let active = true;
     requestJson("/api/config").then((data) => active && setConfig(data)).catch(() => active && setServerOnline(false));
     refreshLibrary();
+    // iPhoneは別端末なので共有状態を持てない。短いポーリングで登録結果と通知をPCへ反映する。
     const timer = window.setInterval(refreshLibrary, 4000);
     return () => { active = false; window.clearInterval(timer); };
   }, []);
@@ -393,6 +396,7 @@ export function DesktopLibrary() {
   const categoryCounts = useMemo(() => Object.fromEntries(categoryOptions.map((category) => [category, books.filter((book) => book.category === category).length])), [books]);
   const platformCounts = useMemo(() => Object.fromEntries(platformOptions.map((platform) => [platform, books.filter((book) => book.format === "electronic" && book.electronicPlatform === platform).length])), [books]);
 
+  // 巻ごとの所蔵データをシリーズ単位へ畳み込み、新刊リスト用の代表値を作る。
   const seriesGroups = useMemo(() => {
     const groups = new Map();
     for (const book of books) {
@@ -428,6 +432,7 @@ export function DesktopLibrary() {
     .filter((group) => group.nextVolumeNumber)
     .filter((group) => !normalizedQuery || `${group.seriesName} ${group.nextVolumeTitle} ${group.nextVolumeIsbn}`.toLocaleLowerCase("ja").includes(normalizedQuery));
 
+  // すべての絞り込み後に一度だけ並べ替え、元のbooks配列と手動順を直接変更しない。
   const visibleBooks = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("ja");
     const filtered = books.filter((book) => {
@@ -556,6 +561,7 @@ export function DesktopLibrary() {
     setActionBusy(true);
     setActionMessage(`${update.seriesName} ${update.nextVolumeNumber}巻を追加しています...`);
     try {
+      // ISBNで書誌を作成し、代表巻の所有形態を引き継いでからシリーズ情報を再計算する。
       const added = await requestJson("/api/isbn", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ isbn: update.nextVolumeIsbn }) });
       const source = update.representative;
       await requestJson(`/api/books/${added.book.id}`, {
@@ -593,6 +599,7 @@ export function DesktopLibrary() {
     if (from < 0 || target < 0) return;
     const [moved] = ordered.splice(from, 1);
     ordered.splice(target, 0, moved);
+    // 先に画面を更新し、保存失敗時だけサーバーの順序へ戻す楽観的更新。
     setBooks(ordered.map((book, index) => ({ ...book, sortOrder: index })));
     setDraggedId(null);
     try {

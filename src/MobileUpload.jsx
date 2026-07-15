@@ -34,6 +34,7 @@ function loadOfflineLibrary() {
   }
 }
 
+/** EXIFの向きを反映できるImageBitmapを優先し、未対応形式だけHTMLImageElementへ戻す。 */
 async function loadImageSource(file) {
   if (window.createImageBitmap) {
     try {
@@ -53,6 +54,7 @@ async function loadImageSource(file) {
   }
 }
 
+/** 大きな写真を端末内で扱いやすい寸法へ縮小し、バーコード候補の帯だけをCanvasへ切り出す。 */
 function canvasFromRegion(source, topRatio, heightRatio) {
   const sourceWidth = source.width || source.naturalWidth;
   const sourceHeight = source.height || source.naturalHeight;
@@ -67,6 +69,10 @@ function canvasFromRegion(source, topRatio, heightRatio) {
   return canvas;
 }
 
+/**
+ * ZXingは撮影時だけ遅延ロードし、よく使われる下半分から順に走査する。
+ * ここで読めない写真は破棄せず、PC側の高精度解析へ送る。
+ */
 async function decodeIsbnLocally(file) {
   const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([
     import("@zxing/browser"),
@@ -164,6 +170,7 @@ export function MobileUpload({ initialMode = "add" }) {
       : { type: "clear", message: "同じISBNは見つかりませんでした" });
   }
 
+  /** 撮影直後に端末内判定を行い、追加モードと店頭チェックで結果の扱いを分ける。 */
   async function handleFile(fileValue) {
     if (!fileValue) return;
     setFile(fileValue);
@@ -193,6 +200,7 @@ export function MobileUpload({ initialMode = "add" }) {
     }
   }
 
+  /** 店頭検索に必要な最小項目だけを保存し、iPhone単体でも重複確認できるようにする。 */
   async function syncLibrary() {
     setSyncing(true);
     setMessage("");
@@ -222,6 +230,9 @@ export function MobileUpload({ initialMode = "add" }) {
     }
   }
 
+  /**
+   * 未解析画像、端末で判定済みの画像、ISBN手入力、PC解析後の追加入力を同じ完了処理へ集約する。
+   */
   async function handleSubmit(event) {
     event.preventDefault();
     if (!file && !isbn.trim() && !pendingUploadId) {
