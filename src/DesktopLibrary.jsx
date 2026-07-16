@@ -14,6 +14,7 @@ import {
   EyeOff,
   ExternalLink,
   FolderOpen,
+  Images,
   LibraryBig,
   MapPin,
   MoveRight,
@@ -694,6 +695,10 @@ export function DesktopLibrary() {
             </div>
           ))}
 
+          <span className="nav-section-title">取り込み</span>
+          <button className="nav-import-button" disabled={!serverOnline} onClick={() => setBulkImportFormat("electronic")} title="電子書籍のスクリーンショットを取り込む"><Images size={19} /><span>電子書籍を登録</span></button>
+          <button className="nav-import-button" disabled={!serverOnline} onClick={() => setBulkImportFormat("physical")} title="実本をまとめて取り込む"><Archive size={19} /><span>実本を取り込む</span></button>
+
           <span className="nav-section-title">カテゴリ</span>
           {categoryOptions.filter((category) => categoryCounts[category] > 0 || category === "マンガ" || category === "小説").map((category) => (
             <button className={viewMode === "library" && categoryFilter === category ? "active" : ""} key={category} onClick={() => chooseCategory(category)} title={category}><BookOpen size={18} /><span>{category}</span><b>{categoryCounts[category] || 0}</b></button>
@@ -734,7 +739,7 @@ export function DesktopLibrary() {
           <span>{visibleBooks.length}冊 / {shelfEntries.length}項目</span>
           <div className="shelf-toolbar-actions">
             <button disabled={!serverOnline} onClick={() => setBulkImportFormat("physical")} title="実本をまとめて取り込む" type="button"><Archive size={16} /><span>実本を一括</span></button>
-            <button disabled={!serverOnline} onClick={() => setBulkImportFormat("electronic")} title="電子書籍を媒体ごとにまとめて取り込む" type="button"><Smartphone size={16} /><span>電子を一括</span></button>
+            <button disabled={!serverOnline} onClick={() => setBulkImportFormat("electronic")} title="電子書籍のスクリーンショットをまとめて取り込む" type="button"><Images size={16} /><span>電子書籍を一括</span></button>
             <button className={preferences.showSectionHeaders ? "active" : ""} onClick={() => updatePreferences({ showSectionHeaders: !preferences.showSectionHeaders })} title={preferences.showSectionHeaders ? "仕切りを非表示" : "仕切りを表示"} type="button">
               {preferences.showSectionHeaders ? <Eye size={16} /> : <EyeOff size={16} />}<span>仕切り</span>
             </button>

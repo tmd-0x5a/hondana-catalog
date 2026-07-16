@@ -7,6 +7,7 @@ import { createApp } from "./app.mjs";
 import { BarcodeScanner } from "./barcode-scanner.mjs";
 import { BookMetadataService } from "./book-metadata-service.mjs";
 import { BookBulkImportService } from "./book-bulk-import-service.mjs";
+import { BookScreenshotImportService } from "./book-screenshot-import-service.mjs";
 import { BookService } from "./book-service.mjs";
 import { CoverService } from "./cover-service.mjs";
 import { HttpClient } from "./http-client.mjs";
@@ -25,6 +26,7 @@ import { createOriginGuard, securityHeaders } from "./security/http-security.mjs
 import { FixedWindowRateLimiter } from "./security/rate-limiter.mjs";
 import { SeriesService } from "./series-service.mjs";
 import { UploadService } from "./upload-service.mjs";
+import { WindowsOcrService } from "./windows-ocr-service.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = process.env.HONDANA_DIST_DIR || path.join(rootDir, "dist");
@@ -44,6 +46,10 @@ const catalogService = new NdlCatalogService({ httpClient });
 const barcodeScanner = new BarcodeScanner();
 const bookService = new BookService({ repository, metadataService, coverService });
 const bulkImportService = new BookBulkImportService({ bookService });
+const screenshotImportService = new BookScreenshotImportService({
+  ocrService: new WindowsOcrService(),
+  catalogService,
+});
 const seriesService = new SeriesService({ repository, catalogService });
 const recommendationService = new RecommendationService({ repository, catalogService });
 const uploadService = new UploadService({
@@ -59,10 +65,15 @@ const apiRateLimiter = new FixedWindowRateLimiter({
   shouldLimit: (request) => request.path.startsWith("/api/"),
 });
 const uploadRateLimiter = new FixedWindowRateLimiter({ maxRequests: 12 });
+const screenshotRateLimiter = new FixedWindowRateLimiter({ maxRequests: 4 });
 
 const routers = [
   createSystemRouter({ bookService, port, getLanAddress: () => lanAddress, accessToken }),
-  createBulkImportRouter({ bulkImportService }),
+  createBulkImportRouter({
+    bulkImportService,
+    screenshotImportService,
+    screenshotRateLimit: screenshotRateLimiter.middleware(),
+  }),
   createBookRouter({ bookService, catalogService, metadataService }),
   createRecommendationRouter({ recommendationService }),
   createSeriesRouter({ seriesService }),

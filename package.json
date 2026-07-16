@@ -1,6 +1,6 @@
 {
   "name": "bookshelf-prototype",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Windows PCとiPhoneのLAN連携で使う個人向け蔵書管理アプリ",
   "author": "tmd-0x5a",
   "license": "MIT",
@@ -66,6 +66,7 @@
       }
     ],
     "asarUnpack": [
+      "server/windows-ocr.ps1",
       "node_modules/sharp/**/*",
       "node_modules/@img/**/*"
     ],

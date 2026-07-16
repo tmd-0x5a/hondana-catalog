@@ -10,9 +10,10 @@
 | --- | --- | --- |
 | LAN HTTP | 無断閲覧・更新・削除 | 起動時256bitトークン、HttpOnly SameSite Cookie、Host・プライベートIP検査 |
 | 悪意あるWebページ | CSRF、DNS rebinding | Origin・Sec-Fetch-Site検査、Host許可リスト、トークン |
-| API大量要求 | CPU・メモリ・外部API枯渇 | API毎分240回、画像毎分12回のIP別制限 |
+| API大量要求 | CPU・メモリ・外部API枯渇 | API毎分240回、ISBN画像毎分12回、OCR一括毎分4回のIP別制限。OCR候補検索は逐次実行 |
 | JSON入力 | 型混乱、巨大入力、想定外項目 | 本文1MB、許可項目、型、長さ、列挙値を検査。一括取り込みは最大200件 |
-| 画像アップロード | MIME偽装、パストラバーサル、画像爆弾 | 12MB、実体形式、4000万画素、静止画検査、JPEG再構築、サーバー生成名、basename表示名 |
+| 画像アップロード | MIME偽装、パストラバーサル、画像爆弾 | 1枚12MB、実体形式、4000万画素、静止画検査、JPEG再構築、サーバー生成名、basename表示名。一括OCRは12枚まで |
+| Windows OCR | コマンド注入、一時ファイル残存、画像外部送信 | `execFile`引数配列、固定PowerShellスクリプト、生成ファイル名、`finally`削除、ローカルOCRのみ |
 | 外部画像 | SSRF、巨大レスポンス、画像爆弾 | HTTPS許可ホスト、追跡前リダイレクト検査、8MB、寸法・画素数・静止画検査 |
 | 外部JSON/XML | メモリ枯渇、停止 | タイムアウト、2〜4MB受信上限、API単位の失敗分離 |
 | Electron | rendererからPC権限取得 | `nodeIntegration: false`、`contextIsolation: true`、`sandbox: true`、権限要求拒否 |

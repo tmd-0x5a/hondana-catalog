@@ -20,7 +20,7 @@
 
 ## ダウンロード
 
-[GitHub Releases](https://github.com/tmd-0x5a/hondana-catalog/releases/latest) から `Hondana-Catalog-Portable-0.3.0.exe` をダウンロードしてください。
+[GitHub Releases](https://github.com/tmd-0x5a/hondana-catalog/releases/latest) から `Hondana-Catalog-Portable-0.4.0.exe` をダウンロードしてください。
 
 - インストール不要のWindows x64向けポータブル版です。
 - EXEを起動すると、ブラウザとは別のアプリウィンドウで開きます。
@@ -56,6 +56,7 @@
 
 - ISBNバーコードをiPhoneで撮影し、同じLAN内のPCへ登録
 - ISBNの直接入力と、タイトル・著者・ISBNによる書籍候補検索
+- 電子書店のスクリーンショットを最大12枚選び、Windows OCRと書誌候補確認から一括取り込み
 - ISBN一覧またはタイトル・著者のTSV/TXTによる、実本・電子書籍の最大200件一括取り込み
 - 書誌情報と表紙画像の自動取得、PC内への表紙キャッシュ
 - 名前順・作者順で書誌の読みを使った「あ行」から「わ行」の仕切り表示
@@ -77,10 +78,11 @@
 
 ### まとめて登録する
 
-1. 本棚上部の「実本を一括」または「電子を一括」を選びます。
-2. 実本なら保管場所、電子書籍ならAmazon Kindle、DMMブックスなどの媒体を指定します。
-3. ISBNを1行ずつ貼り付けるか、`タイトル<TAB>著者`形式のTSV/TXTを貼り付け・選択します。
-4. 最大200件を処理し、既存ISBNは重複作成せず所有形態と保存先を更新します。
+1. 左側の「電子書籍を登録」または本棚上部の一括取り込みを選びます。
+2. Amazon Kindle、DMMブックスなどの電子書籍ストアを指定します。
+3. 電子書店のライブラリ画面のスクリーンショットを最大12枚選びます。Windows内蔵OCRが読み取り、NDLサーチから書名・ISBN・表紙候補を表示します。
+4. 候補の書名、著者、出版年、表紙を確認し、必要な本だけチェックして取り込みます。タイトルやISBNの手入力は不要です。
+5. 実本や書誌一覧を使う場合は「一覧を貼る」へ切り替え、ISBNまたは`タイトル<TAB>著者`形式のTSV/TXTを最大200件処理できます。
 
 ### iPhoneから登録する
 
@@ -123,6 +125,7 @@
 | API | ![Node.js](https://img.shields.io/badge/Node.js-Server-5FA04E?logo=nodedotjs&logoColor=white) ![Express](https://img.shields.io/badge/Express-5-000000?logo=express&logoColor=white) | LANアップロード、書籍検索、ローカル保存 |
 | バーコード | `@zxing/browser` / `@zxing/library` | iPhone写真とPC側フォールバックによるISBN解析 |
 | 画像処理 | `sharp` | アップロード画像の回転、切り抜き、縮小 |
+| OCR | Windows Media OCR | 電子書店スクリーンショットの日本語文字認識。画像はPC外へ送信しない |
 | 配布 | `electron-builder` | Windows x64ポータブルEXEの生成 |
 
 ## 書籍情報と表紙の取得元
@@ -156,7 +159,7 @@ npm install
 npm run desktop
 ```
 
-開発中の最新版を独立したElectron画面で確認するコマンドは `npm run desktop` です。作成済みの配布版は `release\Hondana-Catalog-Portable-0.3.0.exe` を直接実行します。旧`0.2.0`とは別ファイルなので混在時も区別できます。
+開発中の最新版を独立したElectron画面で確認するコマンドは `npm run desktop` です。作成済みの配布版は `release\Hondana-Catalog-Portable-0.4.0.exe` を直接実行します。旧`0.3.0`とは別ファイルなので混在時も区別できます。
 
 `v*`タグをGitHubへプッシュすると、GitHub ActionsがWindows上でテストとポータブル版ビルドを実行し、EXEとSHA-256ファイルをGitHub Releasesへ公開します。
 
@@ -179,6 +182,7 @@ npm run dist:win
 
 - 蔵書データ、写真、表紙キャッシュはPCへ保存され、クラウド同期は行いません。
 - 書誌情報や表紙を取得するときは、ISBNや検索語が外部APIへ送信されます。
+- スクリーンショット画像はWindows内蔵OCRでPC内処理し、外部へ送信しません。OCRから抽出した書名候補だけをNDLサーチへ送信します。
 - LAN用画面はPCのQRに含まれる起動時トークンで保護されます。トークンは初回接続後にURLから削除され、アプリ再起動時に更新されます。
 - LAN通信はHTTPで暗号化されないため、自宅など信頼できるプライベートネットワーク内だけで使用し、QRのURLを公開しないでください。
 - ルーターのポート開放や、インターネットへの直接公開は行わないでください。
@@ -191,6 +195,7 @@ npm run dist:win
 - 新刊確認、候補検索、初回の表紙取得にはインターネット接続が必要です。
 - リマインダーはアプリ内表示で、OS通知やメール通知には対応していません。
 - 外部APIに情報がない本、ISBNがない同人誌・PDF・EPUBなどは手動登録が必要です。
+- OCR結果と書誌候補は誤る場合があります。一括登録前に候補の書名・著者・出版年・表紙を確認してください。
 
 ## ライセンスと免責
 

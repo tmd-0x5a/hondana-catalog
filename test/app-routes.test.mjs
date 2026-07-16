@@ -29,6 +29,11 @@ test("HTTPルートはサービス結果を既存のAPI形式で返す", async (
           return { books: [{ id: "bulk-1" }], processedCount: 1, createdCount: 1, duplicateCount: 0, failedCount: 0, failures: [] };
         },
       },
+      screenshotImportService: {
+        async scanScreenshots(files) {
+          return { documents: files.length, candidates: [], unmatchedLines: [], source: "test" };
+        },
+      },
     }),
     createBookRouter({
       bookService,
@@ -61,6 +66,9 @@ test("HTTPルートはサービス結果を既存のAPI形式で返す", async (
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ format: "physical", entries: [{ title: "一括本" }] }),
   });
+  const screenshotForm = new FormData();
+  screenshotForm.append("screenshots", new Blob(["test image"], { type: "image/jpeg" }), "kindle.jpg");
+  const scanResponse = await fetch(`${baseUrl}/api/books/bulk/scan`, { method: "POST", body: screenshotForm });
 
   assert.equal((await healthResponse.json()).ok, true);
   assert.deepEqual((await booksResponse.json()).books, [{ id: "book-1", title: "既存本" }]);
@@ -68,4 +76,6 @@ test("HTTPルートはサービス結果を既存のAPI形式で返す", async (
   assert.equal((await createResponse.json()).book.title, "新しい本");
   assert.equal(bulkResponse.status, 201);
   assert.equal((await bulkResponse.json()).processedCount, 1);
+  assert.equal(scanResponse.status, 200);
+  assert.equal((await scanResponse.json()).documents, 1);
 });

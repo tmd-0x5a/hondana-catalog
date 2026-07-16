@@ -81,14 +81,14 @@ function normalizedSeriesName(value = "") {
 
 /**
  * かなを行見出しへ、英数字を補助見出しへ変換する。
- * 漢字から読みを推測すると誤分類になるため、読み未取得の値は専用見出しへ送る。
+ * 漢字から読みを推測すると誤分類になるため、読み未取得の値は末尾の「その他」へ送る。
  *
  * @param {unknown} value 見出しに使う書名・著者名。
- * @returns {string} 「あ行」「A-Z」「読み未設定」などの棚見出し。
+ * @returns {string} 「あ行」「A-Z」「その他」などの棚見出し。
  */
 export function initialSectionLabel(value) {
   const normalized = String(value || "").normalize("NFKC").trim().replace(/^[\s\p{P}\p{S}]+/u, "");
-  if (!normalized) return "読み未設定";
+  if (!normalized) return "その他";
   let first = normalized[0];
   const codePoint = first.codePointAt(0);
   if (codePoint >= 0x30a1 && codePoint <= 0x30f6) {
@@ -98,14 +98,14 @@ export function initialSectionLabel(value) {
   if (kanaRow) return kanaRow.label;
   if (/[A-Za-z]/.test(first)) return "A-Z";
   if (/[0-9]/.test(first)) return "0-9";
-  if (/\p{Script=Han}/u.test(first)) return "読み未設定";
+  if (/\p{Script=Han}/u.test(first)) return "その他";
   return "その他";
 }
 
-/** 読みを取得できた項目を先に並べ、未設定項目を棚の末尾へまとめる。 */
+/** 読みを取得できた項目を先に並べ、未取得項目を棚の末尾へまとめる。 */
 function readingSortValue(reading, fallback) {
   const value = reading || fallback || "";
-  return `${initialSectionLabel(value) === "読み未設定" ? "1" : "0"}:${value}`;
+  return `${reading ? "0" : "1"}:${value}`;
 }
 
 /**

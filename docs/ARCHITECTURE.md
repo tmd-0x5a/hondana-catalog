@@ -40,6 +40,8 @@ flowchart LR
 | `server/image-validator.mjs` | アップロード画像の実体形式、容量、画素数、静止画検査 |
 | `server/book-service.mjs` | 蔵書の作成・更新・削除、ISBN書誌の取り込み、表紙補完 |
 | `server/book-bulk-import-service.mjs` | ISBN・手動書誌の最大200件一括処理、所有形態反映、行単位の失敗分離 |
+| `server/windows-ocr-service.mjs` / `windows-ocr.ps1` | 検証済み画像の一時保存、Windows内蔵OCR呼び出し、確実な一時ファイル削除 |
+| `server/book-screenshot-import-service.mjs` | OCR行の正規化、NDLへの逐次候補検索、確認画面用候補の生成 |
 | `server/series-service.mjs` | 所持巻と刊行巻の比較、シリーズ追跡結果の保存 |
 | `server/recommendation-service.mjs` | 読了・評価済み蔵書の選定、著者別候補、所蔵済み除外 |
 | `server/upload-service.mjs` | 画像保存、解析状態、アップロード履歴、ISBN確定 |
@@ -68,6 +70,7 @@ flowchart LR
 3. ISBNは保存前に13桁へ正規化し、同じISBNの再登録は所蔵情報を残した更新として扱います。
 4. 表紙は外部URLのままにせず、取得できた画像をWebPへ変換して `covers/` に保存します。
 5. iPhone写真は端末内で先に解析し、失敗時だけ元画像をPCへ送り、より広い探索を行います。
+6. 電子書店スクリーンショットはPC内のWindows OCRだけで画像解析し、抽出した書名候補をNDLへ逐次送信します。登録は利用者の候補確認後に既存のISBN一括処理へ渡します。
 
 ## 守るべき前提
 

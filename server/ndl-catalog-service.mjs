@@ -155,8 +155,13 @@ export class NdlCatalogService {
   #toSuggestion(item) {
     const categories = asArray(item.category).map(firstText);
     const isbn = itemIsbn(item);
+    const baseTitle = firstText(item.title);
+    const volume = firstText(item.volume);
+    const title = volume && !normalizedSeriesName(baseTitle).endsWith(normalizedSeriesName(volume))
+      ? `${baseTitle} ${volume}`
+      : baseTitle;
     return {
-      title: firstText(item.title),
+      title,
       author: firstText(item.creator),
       publisher: firstText(item.publisher),
       published: firstText(item.issued || item.date),
