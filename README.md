@@ -24,6 +24,7 @@
 
 - インストール不要のWindows x64向けポータブル版です。
 - EXEを起動すると、ブラウザとは別のアプリウィンドウで開きます。
+- GitHub Releasesには、同名の`.sha256.txt`も添付します。ダウンロード後のファイル検証に使えます。
 - 現在の配布EXEは商用コード署名証明書を使用していないため、Windows SmartScreenが確認を表示する場合があります。配布元とファイル名を確認してから実行してください。
 - Windows Defender ファイアウォールの確認では、iPhone連携に使う場合のみ「プライベート ネットワーク」を許可してください。
 
@@ -156,6 +157,8 @@ npm run desktop
 ```
 
 開発中の最新版を独立したElectron画面で確認するコマンドは `npm run desktop` です。作成済みの配布版は `release\Hondana-Catalog-Portable-0.3.0.exe` を直接実行します。旧`0.2.0`とは別ファイルなので混在時も区別できます。
+
+`v*`タグをGitHubへプッシュすると、GitHub ActionsがWindows上でテストとポータブル版ビルドを実行し、EXEとSHA-256ファイルをGitHub Releasesへ公開します。
 
 フロントエンドとAPIサーバーを分けて起動する場合は、別々のターミナルで実行します。
 

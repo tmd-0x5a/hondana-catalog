@@ -1,0 +1,44 @@
+name: Release Windows portable app
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install exact dependencies
+        run: npm ci
+
+      - name: Test and build Windows portable app
+        run: npm run dist:win
+
+      - name: Create release and upload checksummed executable
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $asset = "release/Hondana-Catalog-Portable-$version.exe"
+          $checksumFile = "release/Hondana-Catalog-Portable-$version.sha256.txt"
+          $hash = (Get-FileHash -Algorithm SHA256 $asset).Hash
+          "$hash  $(Split-Path -Leaf $asset)" | Set-Content -Encoding ascii $checksumFile
+          gh release create "${{ github.ref_name }}" $asset $checksumFile `
+            --title "本棚カタログ $version" `
+            --generate-notes `
+            --verify-tag
