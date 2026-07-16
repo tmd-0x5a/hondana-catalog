@@ -20,6 +20,22 @@ function firstSortOrder(books) {
   return books.length ? Math.min(...books.map((book) => Number(book.sortOrder) || 0)) : 0;
 }
 
+/** ローカル表紙または書名・著者の読みが不足するISBN書誌だけを補完対象にする。 */
+function needsMetadataBackfill(book) {
+  if (!book.metadataSource || !book.isbn) return false;
+  const hasLocalCover = book.coverUrl?.startsWith("/covers/");
+  return !hasLocalCover || !book.titleReading || !book.authorReading;
+}
+
+/** 既存の利用者入力を上書きせず、外部書誌から埋められる不足項目だけを返す。 */
+function createMetadataBackfill(book, metadata, coverUrl) {
+  const changes = {};
+  if (!book.coverUrl?.startsWith("/covers/") && coverUrl) changes.coverUrl = coverUrl;
+  if (!book.titleReading && metadata.titleReading) changes.titleReading = metadata.titleReading;
+  if (!book.authorReading && metadata.authorReading) changes.authorReading = metadata.authorReading;
+  return changes;
+}
+
 /** 蔵書の作成・更新・削除とISBN書誌の取り込みを一つのユースケース境界にまとめる。 */
 export class BookService {
   /**
@@ -168,34 +184,50 @@ export class BookService {
   }
 
   /**
-   * 表紙のない書誌登録済み蔵書を補完する。各冊の失敗は分離する。
+   * ISBN登録済み蔵書のローカル表紙と読みを補完する。各冊の失敗は分離する。
+   * 漢字から読みを推測せず、外部書誌が返した読みだけを保存する。
    *
    * @returns {Promise<void>}
    */
-  async backfillMissingCovers() {
+  async backfillMetadataGaps() {
     const books = await this.repository.readBooks();
-    const coverUpdates = new Map();
+    const updates = new Map();
     for (const book of books) {
-      if (book.coverUrl?.startsWith("/covers/") || !book.metadataSource) continue;
+      if (!needsMetadataBackfill(book)) continue;
       try {
         const isbn = normalizeIsbn(book.isbn);
         const metadata = await this.metadataService.findByIsbn(isbn);
-        const preferredUrls = book.coverUrl?.startsWith("http") ? [book.coverUrl] : [];
-        const coverUrl = metadata.coverUrl || await this.coverService.ensureCachedCover(isbn, preferredUrls);
-        if (!coverUrl) continue;
-        coverUpdates.set(String(book.id), coverUrl);
+        let coverUrl = metadata.coverUrl || "";
+        if (!book.coverUrl?.startsWith("/covers/") && !coverUrl) {
+          const preferredUrls = book.coverUrl?.startsWith("http") ? [book.coverUrl] : [];
+          coverUrl = await this.coverService.ensureCachedCover(isbn, preferredUrls);
+        }
+        const changes = createMetadataBackfill(book, metadata, coverUrl);
+        if (Object.keys(changes).length) updates.set(String(book.id), changes);
       } catch {
-        // 一冊のISBNや画像が不正でも、残りの表紙補完は続行する。
+        // 一冊のISBNや外部応答が不正でも、残りの書誌補完を続行する。
       }
     }
-    if (!coverUpdates.size) return;
+    if (!updates.size) return;
     await this.repository.updateBooks((latestBooks) => {
       for (const book of latestBooks) {
-        const coverUrl = coverUpdates.get(String(book.id));
-        if (!coverUrl || book.coverUrl?.startsWith("/covers/")) continue;
-        book.coverUrl = coverUrl;
-        book.coverSource = "openBD・Google Books・Open Library等";
-        book.updatedAt = this.now();
+        const changes = updates.get(String(book.id));
+        if (!changes) continue;
+        let bookChanged = false;
+        if (changes.coverUrl && !book.coverUrl?.startsWith("/covers/")) {
+          book.coverUrl = changes.coverUrl;
+          book.coverSource = "openBD・Google Books・Open Library等";
+          bookChanged = true;
+        }
+        if (changes.titleReading && !book.titleReading) {
+          book.titleReading = changes.titleReading;
+          bookChanged = true;
+        }
+        if (changes.authorReading && !book.authorReading) {
+          book.authorReading = changes.authorReading;
+          bookChanged = true;
+        }
+        if (bookChanged) book.updatedAt = this.now();
       }
     });
   }

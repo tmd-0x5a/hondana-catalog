@@ -311,7 +311,7 @@ export function DesktopLibrary() {
   const [latestUpload, setLatestUpload] = useState(null);
   const [serverOnline, setServerOnline] = useState(false);
   const [showIsbnModal, setShowIsbnModal] = useState(false);
-  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [bulkImportFormat, setBulkImportFormat] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
   const [isbnInput, setIsbnInput] = useState("");
@@ -708,7 +708,7 @@ export function DesktopLibrary() {
         </section>
       </aside>
 
-      <section className="workspace">
+      <section className={`workspace ${showsLibraryControls ? "" : "without-toolbar"}`}>
         <header className="search-console">
           <div className="console-title">{viewMode === "new-releases" ? "新刊リスト" : viewMode === "reminders" ? "リマインダー" : viewMode === "recommendations" ? "おすすめ" : viewMode === "series" ? activeSeries?.title || "シリーズ" : "本を検索"}<span className={`connection-status ${serverOnline ? "online" : "offline"}`}><Wifi size={14} />{serverOnline ? "サーバー稼働中" : "オフライン"}</span></div>
           <div className="top-row">
@@ -733,7 +733,8 @@ export function DesktopLibrary() {
           <label className="sort-control"><select aria-label="並び替え" onChange={(event) => setSortMode(event.target.value)} value={sortMode}><option value="newest">新着順</option><option value="title">名前順</option><option value="author">作者順</option><option value="publisher">出版社順</option><option value="series">シリーズ・巻数順</option><option value="location">保管場所・媒体順</option><option value="manual">手動（ドラッグ）</option></select><ChevronDown size={15} /></label>
           <span>{visibleBooks.length}冊 / {shelfEntries.length}項目</span>
           <div className="shelf-toolbar-actions">
-            <button disabled={!serverOnline} onClick={() => setShowBulkImportModal(true)} title="実本・電子書籍をまとめて取り込む" type="button"><BookCopy size={16} /><span>一括取り込み</span></button>
+            <button disabled={!serverOnline} onClick={() => setBulkImportFormat("physical")} title="実本をまとめて取り込む" type="button"><Archive size={16} /><span>実本を一括</span></button>
+            <button disabled={!serverOnline} onClick={() => setBulkImportFormat("electronic")} title="電子書籍を媒体ごとにまとめて取り込む" type="button"><Smartphone size={16} /><span>電子を一括</span></button>
             <button className={preferences.showSectionHeaders ? "active" : ""} onClick={() => updatePreferences({ showSectionHeaders: !preferences.showSectionHeaders })} title={preferences.showSectionHeaders ? "仕切りを非表示" : "仕切りを表示"} type="button">
               {preferences.showSectionHeaders ? <Eye size={16} /> : <EyeOff size={16} />}<span>仕切り</span>
             </button>
@@ -754,8 +755,10 @@ export function DesktopLibrary() {
           />
         ) : viewMode === "series" ? (
           <SeriesDetailView
+            bookWidth={preferences.bookWidth}
             onBack={() => { setViewMode("library"); setActiveSeriesKey(""); }}
             onSelectBook={(bookId) => { setSelectedId(bookId); setDetailOpen(true); }}
+            selectedId={selectedId}
             series={activeSeries}
           />
         ) : (
@@ -797,7 +800,7 @@ export function DesktopLibrary() {
       </aside>}
 
       {showIsbnModal && <div className="modal-backdrop" onMouseDown={() => setShowIsbnModal(false)}><form className="isbn-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={submitManualIsbn}><header><div><Barcode size={22} /><strong>ISBNから本を追加</strong></div><button aria-label="閉じる" onClick={() => setShowIsbnModal(false)} type="button"><X size={20} /></button></header><p>本の裏表紙にあるISBN-10またはISBN-13を入力します。</p><label><span>ISBN</span><input autoFocus inputMode="numeric" onChange={(event) => setIsbnInput(event.target.value)} placeholder="9784087451224" value={isbnInput} /></label>{actionMessage && <div className="modal-message">{actionMessage}</div>}<footer><button onClick={() => setShowIsbnModal(false)} type="button">キャンセル</button><button className="modal-submit" disabled={actionBusy} type="submit">{actionBusy ? <RefreshCw className="spin" size={17} /> : <ExternalLink size={17} />}書籍情報を取得</button></footer></form></div>}
-      {showBulkImportModal && <BulkImportModal onClose={() => setShowBulkImportModal(false)} onImported={finishBulkImport} />}
+      {bulkImportFormat && <BulkImportModal initialFormat={bulkImportFormat} onClose={() => setBulkImportFormat(null)} onImported={finishBulkImport} />}
       {showEditModal && <BookEditModal book={editingBook} onClose={() => setShowEditModal(false)} onSaved={async (book) => { setShowEditModal(false); await refreshLibrary(); setSelectedId(book.id); }} />}
     </main>
   );

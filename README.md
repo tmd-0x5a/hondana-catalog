@@ -20,7 +20,7 @@
 
 ## ダウンロード
 
-[GitHub Releases](https://github.com/tmd-0x5a/hondana-catalog/releases/latest) から `Hondana-Catalog-Portable-0.2.0.exe` をダウンロードしてください。
+[GitHub Releases](https://github.com/tmd-0x5a/hondana-catalog/releases/latest) から `Hondana-Catalog-Portable-0.3.0.exe` をダウンロードしてください。
 
 - インストール不要のWindows x64向けポータブル版です。
 - EXEを起動すると、ブラウザとは別のアプリウィンドウで開きます。
@@ -39,12 +39,25 @@
   <img src="docs/screenshots/iphone-upload.png" width="360" alt="iPhoneからISBNバーコードを撮影する画面">
 </p>
 
+### 電子書籍の一括取り込み
+
+![電子書籍媒体を指定して複数冊を取り込む画面](docs/screenshots/electronic-bulk-import.png)
+
+### シリーズ内も共通の本棚UI
+
+![シリーズを開き、各巻を通常と同じ本棚UIで表示した画面](docs/screenshots/series-shelf.png)
+
+### 読みによる名前順の仕切り
+
+![書誌の読みを使って英字とかな行の仕切りを表示した画面](docs/screenshots/kana-sections.png)
+
 ## 主な機能
 
 - ISBNバーコードをiPhoneで撮影し、同じLAN内のPCへ登録
 - ISBNの直接入力と、タイトル・著者・ISBNによる書籍候補検索
 - ISBN一覧またはタイトル・著者のTSV/TXTによる、実本・電子書籍の最大200件一括取り込み
 - 書誌情報と表紙画像の自動取得、PC内への表紙キャッシュ
+- 名前順・作者順で書誌の読みを使った「あ行」から「わ行」の仕切り表示
 - 実本と電子書籍を分けて管理し、保管場所や電子書籍ストアのリンクを保存
 - マンガ、小説、技術書、ビジネス書などのカテゴリ絞り込み
 - シリーズ名と巻数の管理、新刊候補リスト、アプリ内リマインダー
@@ -63,7 +76,7 @@
 
 ### まとめて登録する
 
-1. 本棚上部の「一括取り込み」を選びます。
+1. 本棚上部の「実本を一括」または「電子を一括」を選びます。
 2. 実本なら保管場所、電子書籍ならAmazon Kindle、DMMブックスなどの媒体を指定します。
 3. ISBNを1行ずつ貼り付けるか、`タイトル<TAB>著者`形式のTSV/TXTを貼り付け・選択します。
 4. 最大200件を処理し、既存ISBNは重複作成せず所有形態と保存先を更新します。
@@ -142,7 +155,7 @@ npm install
 npm run desktop
 ```
 
-開発中の最新版を独立したElectron画面で確認するコマンドは `npm run desktop` です。作成済みの配布版は `release\Hondana-Catalog-Portable-0.2.0.exe` を直接実行します。
+開発中の最新版を独立したElectron画面で確認するコマンドは `npm run desktop` です。作成済みの配布版は `release\Hondana-Catalog-Portable-0.3.0.exe` を直接実行します。旧`0.2.0`とは別ファイルなので混在時も区別できます。
 
 フロントエンドとAPIサーバーを分けて起動する場合は、別々のターミナルで実行します。
 

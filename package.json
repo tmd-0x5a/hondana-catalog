@@ -1,6 +1,6 @@
 {
   "name": "bookshelf-prototype",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Windows PCとiPhoneのLAN連携で使う個人向け蔵書管理アプリ",
   "author": "tmd-0x5a",
   "license": "MIT",

@@ -41,16 +41,16 @@ function BookCover({ book, selected, onSelect }) {
  */
 export function LibraryShelf({
   bookWidth,
-  draggedId,
-  latestUpload,
-  manualSort,
+  draggedId = null,
+  latestUpload = null,
+  manualSort = false,
   onDismissUpload,
   onDragEnd,
   onDragStart,
   onDrop,
   onOpenSeries,
   onSelectBook,
-  queueState,
+  queueState = "ready",
   sections,
   selectedId,
 }) {

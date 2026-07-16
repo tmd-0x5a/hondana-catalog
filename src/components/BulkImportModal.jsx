@@ -9,12 +9,13 @@ import { PLATFORM_OPTIONS } from "../library-model.js";
  * 実本・電子書籍の共通保存先と複数書誌をまとめて登録するモーダル。
  *
  * @param {object} props 表示制御と完了通知。
+ * @param {"physical"|"electronic"} [props.initialFormat="physical"] 入口で選択された所有形態。
  * @param {() => void} props.onClose モーダルを閉じる処理。
  * @param {(result: object) => void|Promise<void>} props.onImported API処理後の蔵書再読込処理。
  * @returns {import("react").ReactElement} 一括取り込みフォーム。
  */
-export function BulkImportModal({ onClose, onImported }) {
-  const [format, setFormat] = useState("physical");
+export function BulkImportModal({ initialFormat = "physical", onClose, onImported }) {
+  const [format, setFormat] = useState(initialFormat);
   const [physicalLocation, setPhysicalLocation] = useState("本棚");
   const [electronicPlatform, setElectronicPlatform] = useState("Amazon Kindle");
   const [rawText, setRawText] = useState("");
@@ -22,6 +23,7 @@ export function BulkImportModal({ onClose, onImported }) {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
   const parsed = useMemo(() => parseBulkImportText(rawText), [rawText]);
+  const title = format === "electronic" ? "電子書籍を一括取り込み" : "実本を一括取り込み";
 
   async function loadFile(event) {
     const file = event.target.files?.[0];
@@ -60,7 +62,7 @@ export function BulkImportModal({ onClose, onImported }) {
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <form className="edit-modal bulk-import-modal" onMouseDown={(event) => event.stopPropagation()} onSubmit={submit}>
-        <header><div><Upload size={22} /><strong>一括取り込み</strong></div><button aria-label="閉じる" onClick={onClose} type="button"><X size={20} /></button></header>
+        <header><div>{format === "electronic" ? <Smartphone size={22} /> : <Archive size={22} />}<strong>{title}</strong></div><button aria-label="閉じる" onClick={onClose} type="button"><X size={20} /></button></header>
         <fieldset className="segmented-field bulk-format"><legend>所有形態</legend><div className="segmented-control"><button className={format === "physical" ? "selected" : ""} onClick={() => setFormat("physical")} type="button"><Archive size={17} />実本</button><button className={format === "electronic" ? "selected" : ""} onClick={() => setFormat("electronic")} type="button"><Smartphone size={17} />電子書籍</button></div></fieldset>
 
         <div className="bulk-target">

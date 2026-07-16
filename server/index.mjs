@@ -92,8 +92,8 @@ const server = app.listen(port, "0.0.0.0", () => {
   const lanUrl = `http://${lanAddress}:${port}`;
   console.log(`本棚カタログ: http://127.0.0.1:${port}`);
   console.log(`iPhoneアップロード: ${lanUrl}/upload`);
-  void bookService.backfillMissingCovers().catch((error) => {
-    console.error("表紙の自動取得に失敗しました。", error);
+  void bookService.backfillMetadataGaps().catch((error) => {
+    console.error("表紙・読みの自動補完に失敗しました。", error);
   });
 });
 
