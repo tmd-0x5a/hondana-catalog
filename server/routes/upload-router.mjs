@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 
 import { httpError } from "../http-error.mjs";
+import { MAX_UPLOAD_BYTES } from "../image-validator.mjs";
 import { asyncRoute } from "./async-route.mjs";
 
 const ALLOWED_IMAGE_TYPES = new Set([
@@ -15,15 +16,30 @@ const ALLOWED_IMAGE_TYPES = new Set([
 function createImageUploadMiddleware() {
   return multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 20 * 1024 * 1024 },
+    limits: {
+      fileSize: MAX_UPLOAD_BYTES,
+      files: 1,
+      fields: 1,
+      parts: 3,
+      fieldNameSize: 100,
+      fieldSize: 256,
+    },
     fileFilter(_request, file, callback) {
       const allowed = ALLOWED_IMAGE_TYPES.has(file.mimetype);
-      callback(allowed ? null : new Error("画像ファイルを選択してください。"), allowed);
+      callback(allowed ? null : httpError(400, "画像ファイルを選択してください。"), allowed);
     },
   });
 }
 
-export function createUploadRouter({ uploadService }) {
+/**
+ * 画像受信、再解析、ISBN手動補完、通知非表示のルートを生成する。
+ *
+ * @param {object} dependencies ルート依存。
+ * @param {import("../upload-service.mjs").UploadService} dependencies.uploadService アップロードサービス。
+ * @param {import("express").RequestHandler} [dependencies.uploadRateLimit] 画像受信専用レート制限。
+ * @returns {import("express").Router} `/api/upload`と`/api/uploads`ルーター。
+ */
+export function createUploadRouter({ uploadService, uploadRateLimit = (_request, _response, next) => next() }) {
   const router = express.Router();
   const imageUpload = createImageUploadMiddleware();
 
@@ -37,14 +53,14 @@ export function createUploadRouter({ uploadService }) {
     response.status(204).end();
   }));
 
-  router.post("/api/upload", imageUpload.single("image"), asyncRoute(async (request, response) => {
+  router.post("/api/upload", uploadRateLimit, imageUpload.single("image"), asyncRoute(async (request, response) => {
     if (!request.file) throw httpError(400, "画像を選択してください。");
-    const result = await uploadService.receiveImage(request.file, request.body.isbn);
+    const result = await uploadService.receiveImage(request.file, request.body?.isbn);
     response.status(result.duplicate ? 200 : 201).json(result);
   }));
 
   router.post("/api/uploads/:id/isbn", asyncRoute(async (request, response) => {
-    const result = await uploadService.completeWithIsbn(request.params.id, request.body.isbn);
+    const result = await uploadService.completeWithIsbn(request.params.id, request.body?.isbn);
     response.status(result.duplicate ? 200 : 201).json(result);
   }));
 

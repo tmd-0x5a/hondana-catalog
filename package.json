@@ -8,8 +8,13 @@
   "private": true,
   "type": "module",
   "main": "electron/main.mjs",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "test": "node --test test/all.test.mjs",
+    "check": "npm test && npm run build",
+    "security:audit": "npm audit",
     "dev": "vite",
     "server": "node server/index.mjs",
     "app": "npm run build && node server/index.mjs",
@@ -19,7 +24,6 @@
     "dist:win": "npm run build && electron-builder --win portable --x64"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "5.0.4",
     "@zxing/browser": "^0.2.0",
     "@zxing/library": "^0.22.0",
     "express": "^5.2.1",
@@ -29,12 +33,13 @@
     "qrcode": "^1.5.4",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "sharp": "^0.35.3",
-    "vite": "6.4.2"
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "5.0.4",
     "electron": "43.1.1",
-    "electron-builder": "26.0.12"
+    "electron-builder": "26.11.1",
+    "vite": "6.4.3"
   },
   "build": {
     "appId": "jp.local.hondana.catalog",
@@ -55,7 +60,9 @@
       {
         "from": "data",
         "to": "seed-data",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "asarUnpack": [
@@ -63,7 +70,9 @@
       "node_modules/@img/**/*"
     ],
     "win": {
-      "target": ["portable"],
+      "target": [
+        "portable"
+      ],
       "icon": "build/icon.ico"
     }
   }

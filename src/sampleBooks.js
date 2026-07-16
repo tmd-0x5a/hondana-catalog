@@ -1,3 +1,4 @@
+/** @type {Partial<import("./types.js").Book>[]} 初回起動時だけ使用し、起動時に現行形式へ補完するデモ蔵書。 */
 export const sampleBooks = [
   {
     id: 1,

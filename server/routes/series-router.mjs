@@ -2,11 +2,18 @@ import express from "express";
 
 import { asyncRoute } from "./async-route.mjs";
 
+/**
+ * シリーズ単体・全件の新刊確認ルートを生成する。
+ *
+ * @param {object} dependencies ルート依存。
+ * @param {import("../series-service.mjs").SeriesService} dependencies.seriesService シリーズ追跡サービス。
+ * @returns {import("express").Router} `/api/series`ルーター。
+ */
 export function createSeriesRouter({ seriesService }) {
   const router = express.Router();
 
   router.post("/api/series/check", asyncRoute(async (request, response) => {
-    response.json(await seriesService.checkSeries(request.body.seriesName));
+    response.json(await seriesService.checkSeries(request.body?.seriesName));
   }));
 
   router.post("/api/series/check-all", asyncRoute(async (_request, response) => {

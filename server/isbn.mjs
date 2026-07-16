@@ -2,11 +2,13 @@
  * ISBN入力からハイフンや空白を除き、検証に使う数字列へ揃える。
  * ISBN-10のチェック文字だけは大文字のXとして残す。
  */
+/** @param {unknown} value ISBN表示。 @returns {string} 数字と末尾Xだけの大文字文字列。 */
 export function stripIsbn(value = "") {
   return String(value).toUpperCase().replace(/[^0-9X]/g, "");
 }
 
 /** ISBN-10の重み付きチェックサムを検証する。 */
+/** @param {string} value ハイフンなしISBN-10。 @returns {boolean} チェックディジットが正しければtrue。 */
 export function validIsbn10(value) {
   if (!/^\d{9}[\dX]$/.test(value)) return false;
   const sum = [...value].reduce((total, digit, index) => {
@@ -17,6 +19,7 @@ export function validIsbn10(value) {
 }
 
 /** ISBN-13の末尾チェックディジットを検証する。 */
+/** @param {string} value ハイフンなしISBN-13。 @returns {boolean} チェックディジットが正しければtrue。 */
 export function validIsbn13(value) {
   if (!/^\d{13}$/.test(value)) return false;
   const sum = [...value.slice(0, 12)].reduce(
@@ -29,6 +32,10 @@ export function validIsbn13(value) {
 /**
  * APIと保存データで使うISBNを13桁へ正規化する。
  * ISBN-10は978接頭辞を付けてチェックディジットを再計算する。
+ *
+ * @param {unknown} value ISBN-10またはISBN-13。
+ * @returns {string} ハイフンなしISBN-13。
+ * @throws {Error & {status: number}} チェックディジットを検証できない場合。
  */
 export function normalizeIsbn(value) {
   const compact = stripIsbn(value);

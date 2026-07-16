@@ -3,34 +3,63 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 
 import { httpError } from "./http-error.mjs";
+import { prepareUploadedImage } from "./image-validator.mjs";
+import { normalizeIsbn } from "./isbn.mjs";
+import { validateResourceId, validateUploadLimit } from "./request-validation.mjs";
 
 const MAX_UPLOAD_HISTORY = 100;
 const SUCCESS_NOTICE_LIFETIME_MS = 60 * 1000;
 
-function imageExtension(file) {
-  const extensionByMimeType = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
-    "image/heic": ".heic",
-    "image/heif": ".heif",
-  };
-  return extensionByMimeType[file.mimetype] || path.extname(file.originalname).toLowerCase() || ".jpg";
+function safeOriginalName(value) {
+  return path.basename(String(value || "iPhoneの写真"))
+    .replace(/[\u0000-\u001f\u007f]/g, "")
+    .slice(0, 120) || "iPhoneの写真";
+}
+
+function safeStoredFilename(value) {
+  const filename = String(value || "");
+  if (path.basename(filename) !== filename || !/^[A-Za-z0-9.-]{1,200}$/.test(filename)) {
+    throw httpError(400, "保存画像のファイル名が正しくありません。");
+  }
+  return filename;
 }
 
 /** 画像ファイル、解析状態、アップロード履歴、ISBN確定処理をまとめる。 */
 export class UploadService {
-  constructor({ repository, bookService, barcodeScanner, uploadDir, now = () => new Date().toISOString(), createId = crypto.randomUUID }) {
+  /**
+   * @param {object} dependencies サービス依存。
+   * @param {import("./library-repository.mjs").LibraryRepository} dependencies.repository 保存境界。
+   * @param {import("./book-service.mjs").BookService} dependencies.bookService ISBN登録サービス。
+   * @param {import("./barcode-scanner.mjs").BarcodeScanner} dependencies.barcodeScanner 画像解析器。
+   * @param {string} dependencies.uploadDir 画像保存先。
+   * @param {(buffer: Buffer) => Promise<{extension: string, buffer: Buffer}>} [dependencies.prepareImage] 画像検査・再構築関数。
+   * @param {() => string} [dependencies.now] ISO日時関数。
+   * @param {() => string} [dependencies.createId] 一意ID関数。
+   */
+  constructor({
+    repository,
+    bookService,
+    barcodeScanner,
+    uploadDir,
+    prepareImage = prepareUploadedImage,
+    now = () => new Date().toISOString(),
+    createId = crypto.randomUUID,
+  }) {
     this.repository = repository;
     this.bookService = bookService;
     this.barcodeScanner = barcodeScanner;
     this.uploadDir = uploadDir;
+    this.prepareImage = prepareImage;
     this.now = now;
     this.createId = createId;
   }
 
+  /**
+   * @param {unknown} limitValue 取得件数クエリ。
+   * @returns {Promise<import("../src/types.js").UploadRecord[]>} 表示対象の新しい履歴。
+   */
   async listVisibleUploads(limitValue) {
-    const limit = Math.min(Math.max(Number(limitValue) || 10, 1), MAX_UPLOAD_HISTORY);
+    const limit = validateUploadLimit(limitValue);
     const uploads = await this.repository.readUploads();
     const recentSuccessCutoff = Date.now() - SUCCESS_NOTICE_LIFETIME_MS;
     return uploads
@@ -38,19 +67,31 @@ export class UploadService {
       .slice(0, limit);
   }
 
+  /** @param {unknown} id アップロードID。 @returns {Promise<void>} */
   async dismissUpload(id) {
-    const uploads = await this.repository.readUploads();
-    const uploadIndex = uploads.findIndex((upload) => upload.id === id);
-    if (uploadIndex < 0) throw httpError(404, "アップロード履歴が見つかりません。");
-    uploads[uploadIndex] = { ...uploads[uploadIndex], dismissedAt: this.now() };
-    await this.repository.saveUploads(uploads);
+    const uploadId = validateResourceId(id, "アップロードID");
+    await this.repository.updateUploads((uploads) => {
+      const uploadIndex = uploads.findIndex((upload) => upload.id === uploadId);
+      if (uploadIndex < 0) throw httpError(404, "アップロード履歴が見つかりません。");
+      uploads[uploadIndex] = { ...uploads[uploadIndex], dismissedAt: this.now() };
+    });
   }
 
+  /**
+   * 画像を検証・保存してISBNを解析し、蔵書へ登録する。
+   *
+   * @param {{buffer: Buffer, originalname?: string, mimetype?: string}} file Multer受信ファイル。
+   * @param {unknown} suppliedIsbn 端末内で先に読み取れたISBN。
+   * @returns {Promise<{book: import("../src/types.js").Book, upload: import("../src/types.js").UploadRecord, duplicate: boolean}>} 登録結果。
+   */
   async receiveImage(file, suppliedIsbn) {
-    const storedFilename = await this.#saveImage(file);
+    if (!file || !Buffer.isBuffer(file.buffer)) throw httpError(400, "画像を選択してください。");
+    const clientDetectedIsbn = suppliedIsbn ? normalizeIsbn(suppliedIsbn) : "";
+    const preparedImage = await this.prepareImage(file.buffer);
+    const storedFilename = await this.#saveImage(preparedImage.buffer, preparedImage.extension);
     const upload = await this.#saveUploadRecord({
       id: this.createId(),
-      originalName: file.originalname || "iPhoneの写真",
+      originalName: safeOriginalName(file.originalname),
       storedFilename,
       imageUrl: `/uploads/${storedFilename}`,
       status: "processing",
@@ -59,7 +100,7 @@ export class UploadService {
     });
 
     try {
-      const isbn = suppliedIsbn || await this.barcodeScanner.scan(file.buffer);
+      const isbn = clientDetectedIsbn || await this.barcodeScanner.scan(preparedImage.buffer);
       return await this.#completeUpload(upload, isbn);
     } catch (error) {
       if (error.status !== 422) throw error;
@@ -72,14 +113,23 @@ export class UploadService {
     }
   }
 
+  /**
+   * @param {unknown} uploadId 手動補完するアップロードID。
+   * @param {unknown} isbn ISBN-10またはISBN-13。
+   * @returns {Promise<object>} ISBN登録結果。
+   */
   async completeWithIsbn(uploadId, isbn) {
     const upload = await this.#findUpload(uploadId);
     return this.#completeUpload(upload, isbn);
   }
 
+  /**
+   * @param {unknown} uploadId 再解析するアップロードID。
+   * @returns {Promise<object>} ISBN登録結果。
+   */
   async retryBarcode(uploadId) {
     const upload = await this.#findUpload(uploadId);
-    const image = await fsp.readFile(path.join(this.uploadDir, upload.storedFilename));
+    const image = await fsp.readFile(path.join(this.uploadDir, safeStoredFilename(upload.storedFilename)));
     const isbn = await this.barcodeScanner.scan(image);
     return this.#completeUpload(upload, isbn);
   }
@@ -91,24 +141,26 @@ export class UploadService {
     return completedAt >= recentSuccessCutoff;
   }
 
-  async #saveImage(file) {
-    const storedFilename = `${Date.now()}-${this.createId()}${imageExtension(file)}`;
-    await fsp.writeFile(path.join(this.uploadDir, storedFilename), file.buffer);
+  async #saveImage(buffer, extension) {
+    const storedFilename = `${Date.now()}-${this.createId()}${extension}`;
+    await fsp.writeFile(path.join(this.uploadDir, storedFilename), buffer);
     return storedFilename;
   }
 
   async #saveUploadRecord(record) {
-    const uploads = await this.repository.readUploads();
-    const existingIndex = uploads.findIndex((upload) => upload.id === record.id);
-    if (existingIndex >= 0) uploads[existingIndex] = record;
-    else uploads.unshift(record);
-    await this.repository.saveUploads(uploads.slice(0, MAX_UPLOAD_HISTORY));
-    return record;
+    return this.repository.updateUploads((uploads) => {
+      const existingIndex = uploads.findIndex((upload) => upload.id === record.id);
+      if (existingIndex >= 0) uploads[existingIndex] = record;
+      else uploads.unshift(record);
+      uploads.splice(MAX_UPLOAD_HISTORY);
+      return record;
+    });
   }
 
   async #findUpload(id) {
+    const uploadId = validateResourceId(id, "アップロードID");
     const uploads = await this.repository.readUploads();
-    const upload = uploads.find((item) => item.id === id);
+    const upload = uploads.find((item) => item.id === uploadId);
     if (!upload) throw httpError(404, "アップロード画像が見つかりません。");
     return upload;
   }

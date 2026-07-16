@@ -5,6 +5,12 @@ import path from "node:path";
 
 import { app, BrowserWindow, dialog, shell } from "electron";
 
+import {
+  isAllowedExternalUrl,
+  isApplicationUrl,
+  isLocalCompanionPage,
+} from "./url-policy.mjs";
+
 app.setPath("userData", path.join(app.getPath("appData"), "HondanaCatalog"));
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
@@ -45,33 +51,25 @@ async function prepareUserData() {
   return dataDir;
 }
 
-function isLocalCompanionPage(url) {
-  try {
-    const target = new URL(url);
-    return target.protocol === "http:"
-      && Number(target.port) === appPort
-      && ["/upload", "/check"].includes(target.pathname);
-  } catch {
-    return false;
-  }
-}
-
 /** LAN補助画面だけをアプリ内に残し、外部URLは既定ブラウザへ隔離する。 */
-function applyNavigationPolicy(window) {
+function applyNavigationPolicy(window, windowUrl) {
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (isLocalCompanionPage(url)) {
+    if (isLocalCompanionPage(url, appUrl)) {
       createWindow(url, { width: 460, height: 820, minWidth: 390, minHeight: 680 });
-    } else {
+    } else if (isAllowedExternalUrl(url)) {
       void shell.openExternal(url);
     }
     return { action: "deny" };
   });
 
   window.webContents.on("will-navigate", (event, url) => {
-    if (url.startsWith(appUrl)) return;
+    if (isApplicationUrl(url, windowUrl)) return;
     event.preventDefault();
-    void shell.openExternal(url);
+    if (isAllowedExternalUrl(url)) void shell.openExternal(url);
   });
+
+  window.webContents.session.setPermissionCheckHandler(() => false);
+  window.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 }
 
 function createWindow(url = appUrl, dimensions = {}) {
@@ -92,7 +90,7 @@ function createWindow(url = appUrl, dimensions = {}) {
     },
   });
   window.setMenuBarVisibility(false);
-  applyNavigationPolicy(window);
+  applyNavigationPolicy(window, url);
   window.once("ready-to-show", () => window.show());
   void window.loadURL(url);
   if (url === appUrl) mainWindow = window;

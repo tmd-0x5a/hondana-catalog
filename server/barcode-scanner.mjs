@@ -2,6 +2,7 @@ import ZXing from "@zxing/library";
 import sharp from "sharp";
 
 import { stripIsbn, validIsbn13 } from "./isbn.mjs";
+import { MAX_UPLOAD_PIXELS } from "./image-validator.mjs";
 
 const {
   BarcodeFormat,
@@ -54,6 +55,7 @@ function isbnFromBarcodeText(value) {
 
 /** 画像の向き補正、段階的な領域探索、ZXingによるISBN検証を担当する。 */
 export class BarcodeScanner {
+  /** EAN系だけを探索するZXingヒントを初期化する。 */
   constructor() {
     this.hints = new Map();
     this.hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -64,8 +66,17 @@ export class BarcodeScanner {
     this.hints.set(DecodeHintType.TRY_HARDER, true);
   }
 
+  /**
+   * 画像を段階的な切り出し・回転で解析し、書籍用ISBN-13を返す。
+   *
+   * @param {Buffer} buffer inspectUploadedImageを通過した画像バイト列。
+   * @returns {Promise<string>} 978または979で始まる検証済みISBN-13。
+   * @throws {Error & {status: number}} 読み取れない場合はstatus 422。
+   */
   async scan(buffer) {
-    const { data: orientedImage, info } = await sharp(buffer).rotate().toBuffer({ resolveWithObject: true });
+    const { data: orientedImage, info } = await sharp(buffer, { limitInputPixels: MAX_UPLOAD_PIXELS })
+      .rotate()
+      .toBuffer({ resolveWithObject: true });
     const regions = barcodeRegions(info.width, info.height);
 
     const fastPassRegions = ["bottom-half", "middle-band", "full"]

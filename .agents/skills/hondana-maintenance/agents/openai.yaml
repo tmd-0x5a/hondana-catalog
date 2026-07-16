@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hondana Maintenance"
+  short_description: "Refactor and secure the Hondana catalog with data-safe checks"
+  default_prompt: "Maintain the Hondana catalog by preserving stored data, separating responsibilities, documenting public contracts, validating input, testing behavior, and checking responsive layouts."

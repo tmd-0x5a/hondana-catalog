@@ -15,10 +15,18 @@ class MemoryRepository {
   async saveBooks(books) {
     this.books = structuredClone(books);
   }
+
+  async updateBooks(mutator) {
+    const books = structuredClone(this.books);
+    const result = await mutator(books);
+    this.books = books;
+    return result;
+  }
 }
 
 const metadata = {
   title: "更新された書名",
+  titleReading: "こうしんされたしょめい",
   author: "書誌著者",
   publisher: "出版社",
   published: "2026-01-01",
@@ -35,6 +43,7 @@ test("ISBN再登録では書誌を更新して所蔵情報を保持する", asyn
   const repository = new MemoryRepository([{
     id: "owned",
     title: "古い書名",
+    titleReading: "りようしゃがなおしたよみ",
     isbn: "9780306406157",
     category: "小説",
     format: "electronic",
@@ -56,6 +65,7 @@ test("ISBN再登録では書誌を更新して所蔵情報を保持する", asyn
 
   assert.equal(result.duplicate, true);
   assert.equal(result.book.title, "更新された書名");
+  assert.equal(result.book.titleReading, "りようしゃがなおしたよみ");
   assert.equal(result.book.status, "読了");
   assert.equal(result.book.format, "electronic");
   assert.equal(result.book.electronicPlatform, "DMMブックス");

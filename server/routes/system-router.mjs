@@ -19,7 +19,17 @@ function pocketBook(book) {
   };
 }
 
-export function createSystemRouter({ bookService, port, getLanAddress }) {
+/**
+ * 稼働情報、LAN接続設定、持ち出し本棚のルートを生成する。
+ *
+ * @param {object} dependencies ルート依存。
+ * @param {import("../book-service.mjs").BookService} dependencies.bookService 蔵書読込サービス。
+ * @param {number} dependencies.port 待受ポート。
+ * @param {() => string} dependencies.getLanAddress LAN IPv4取得関数。
+ * @param {string} dependencies.accessToken 起動ごとのLAN接続トークン。
+ * @returns {import("express").Router} システム系APIルーター。
+ */
+export function createSystemRouter({ bookService, port, getLanAddress, accessToken }) {
   const router = express.Router();
 
   router.get("/api/health", (_request, response) => {
@@ -30,13 +40,15 @@ export function createSystemRouter({ bookService, port, getLanAddress }) {
     const lanIp = getLanAddress();
     const baseUrl = `http://${lanIp}:${port}`;
     const uploadUrl = `${baseUrl}/upload`;
+    const authorizedUploadUrl = `${uploadUrl}?access_token=${encodeURIComponent(accessToken)}`;
     response.json({
       lanIp,
       port,
       baseUrl,
       uploadUrl,
+      authorizedUploadUrl,
       checkUrl: `${baseUrl}/check`,
-      qrCode: await QRCode.toDataURL(uploadUrl, { margin: 1, width: 196 }),
+      qrCode: await QRCode.toDataURL(authorizedUploadUrl, { margin: 1, width: 196 }),
     });
   }));
 

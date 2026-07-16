@@ -1,5 +1,5 @@
 import { normalizedSeriesName } from "./book-model.mjs";
-import { httpError } from "./http-error.mjs";
+import { validateSearchText } from "./request-validation.mjs";
 
 function seriesStatusMessage(latest, nextAvailable) {
   if (!latest) return "シリーズの巻情報を確認できませんでした。シリーズ名を調整してください。";
@@ -9,40 +9,53 @@ function seriesStatusMessage(latest, nextAvailable) {
 
 /** 所持巻とNDLの刊行巻を比較し、シリーズ追跡結果を全所持巻へ反映する。 */
 export class SeriesService {
+  /**
+   * @param {object} dependencies サービス依存。
+   * @param {import("./library-repository.mjs").LibraryRepository} dependencies.repository 保存境界。
+   * @param {import("./ndl-catalog-service.mjs").NdlCatalogService} dependencies.catalogService NDL検索。
+   * @param {() => string} [dependencies.now] ISO日時関数。
+   */
   constructor({ repository, catalogService, now = () => new Date().toISOString() }) {
     this.repository = repository;
     this.catalogService = catalogService;
     this.now = now;
   }
 
+  /**
+   * @param {unknown} value シリーズ名。
+   * @returns {Promise<object>} 所持最大巻、刊行最新巻、次に登録可能な巻。
+   */
   async checkSeries(value) {
-    const seriesName = String(value || "").trim();
-    if (!seriesName) throw httpError(400, "シリーズ名を入力してください。");
+    const seriesName = validateSearchText(value, { minLength: 1, maxLength: 300, label: "シリーズ名" });
 
     const catalog = await this.catalogService.findSeriesVolumes(seriesName);
-    const books = await this.repository.readBooks();
-    const seriesKey = normalizedSeriesName(seriesName);
-    const matchingBooks = books.filter((book) => normalizedSeriesName(book.seriesName) === seriesKey);
-    const ownedMax = Math.max(0, ...matchingBooks.map((book) => Number(book.volumeNumber) || 0));
     const latest = catalog.at(-1) || null;
-    const nextAvailable = catalog.find((item) => item.volumeNumber > ownedMax) || null;
     const checkedAt = this.now();
+    return this.repository.updateBooks((books) => {
+      const seriesKey = normalizedSeriesName(seriesName);
+      const matchingBooks = books.filter((book) => normalizedSeriesName(book.seriesName) === seriesKey);
+      const ownedMax = Math.max(0, ...matchingBooks.map((book) => Number(book.volumeNumber) || 0));
+      const nextAvailable = catalog.find((item) => item.volumeNumber > ownedMax) || null;
+      for (const book of matchingBooks) this.#applySeriesResult(book, latest, nextAvailable, checkedAt);
 
-    for (const book of matchingBooks) this.#applySeriesResult(book, latest, nextAvailable, checkedAt);
-    if (matchingBooks.length) await this.repository.saveBooks(books);
-
-    return {
-      seriesName,
-      ownedMax,
-      latest,
-      nextAvailable,
-      hasNewVolume: Boolean(nextAvailable),
-      checkedAt,
-      count: catalog.length,
-      message: seriesStatusMessage(latest, nextAvailable),
-    };
+      return {
+        seriesName,
+        ownedMax,
+        latest,
+        nextAvailable,
+        hasNewVolume: Boolean(nextAvailable),
+        checkedAt,
+        count: catalog.length,
+        message: seriesStatusMessage(latest, nextAvailable),
+      };
+    });
   }
 
+  /**
+   * 登録済みマンガシリーズを順番に確認し、一件の外部API失敗を他シリーズへ波及させない。
+   *
+   * @returns {Promise<object[]>} シリーズごとの確認結果またはエラー概要。
+   */
   async checkAllSeries() {
     const books = await this.repository.readBooks();
     const seriesNames = [...new Set(books

@@ -1,3 +1,4 @@
+/** @type {readonly string[]} APIと保存データで許可するカテゴリ。 */
 export const BOOK_CATEGORIES = ["マンガ", "小説", "技術", "ビジネス", "思想・社会", "実用", "その他"];
 
 const CATEGORY_INFERENCE_RULES = [
@@ -8,6 +9,10 @@ const CATEGORY_INFERENCE_RULES = [
   { category: "実用", keywords: /実用|料理|健康|旅行|趣味|暮らし/i },
 ];
 
+/**
+ * @param {unknown} value 電子媒体名。
+ * @returns {string} 既知の表記ゆれを統一した媒体名。
+ */
 export function normalizeElectronicPlatform(value = "") {
   const platform = String(value).trim();
   if (/^kindle$|amazon.*kindle/i.test(platform)) return "Amazon Kindle";
@@ -15,6 +20,7 @@ export function normalizeElectronicPlatform(value = "") {
   return platform;
 }
 
+/** @param {unknown} category カテゴリ候補。 @returns {boolean} 許可カテゴリならtrue。 */
 export function isSupportedCategory(category) {
   return BOOK_CATEGORIES.includes(String(category || "").trim());
 }
@@ -31,6 +37,9 @@ function categorySearchText(book) {
 /**
  * カテゴリの決定順を一か所に固定する。
  * ユーザーが保存した値を最優先し、旧形式の互換情報、最後に補助的な語句推定を使う。
+ *
+ * @param {Partial<import("../src/types.js").Book>} book 正規化前の蔵書。
+ * @returns {string} BOOK_CATEGORIESに含まれるカテゴリ。
  */
 export function inferCategory(book = {}) {
   const savedCategory = String(book.category || "").trim();
@@ -42,12 +51,20 @@ export function inferCategory(book = {}) {
   return matchedRule?.category || "その他";
 }
 
-/** 古いbooks.jsonを含む保存データを、現在のUIが扱う一つの形へ正規化する。 */
+/**
+ * 古いbooks.jsonを含む保存データを、現在のUIが扱う一つの形へ正規化する。
+ *
+ * @param {Partial<import("../src/types.js").Book>} book 正規化前の蔵書。
+ * @param {number} [index=0] sortOrderがない場合の既定順。
+ * @returns {import("../src/types.js").Book} 現行形式の蔵書。
+ */
 export function applyBookDefaults(book, index = 0) {
   const format = book.format === "electronic" ? "electronic" : "physical";
   const category = inferCategory(book);
   return {
     ...book,
+    titleReading: book.titleReading || "",
+    authorReading: book.authorReading || "",
     category,
     bookType: category === "マンガ" ? "manga" : "book",
     format,
@@ -73,6 +90,7 @@ export function applyBookDefaults(book, index = 0) {
   };
 }
 
+/** @param {unknown} value 書名または巻表示。 @returns {number|null} 抽出できた巻数。 */
 export function parseVolumeNumber(value = "") {
   const normalized = String(value).normalize("NFKC");
   const patterns = [
@@ -87,7 +105,12 @@ export function parseVolumeNumber(value = "") {
   return null;
 }
 
-/** 書誌APIに分類情報がないときだけ使う補助推定で、ユーザー編集を最終判断とする。 */
+/**
+ * 書誌APIに分類情報がないときだけ使う補助推定で、利用者編集を最終判断とする。
+ *
+ * @param {Record<string, string>} summary openBD summary。
+ * @returns {{category: string, bookType: "book"|"manga", seriesName: string, volumeNumber: number|null}} 推定分類。
+ */
 export function inferBookClassification(summary) {
   const title = summary.title || "";
   const label = `${summary.series || ""} ${title}`;
@@ -106,7 +129,10 @@ export function inferBookClassification(summary) {
   return { category: "マンガ", bookType: "manga", seriesName, volumeNumber };
 }
 
-/** 表記ゆれのあるシリーズ名を、検索・グループ化に使える比較キーへ変換する。 */
+/**
+ * @param {unknown} value シリーズ名。
+ * @returns {string} 表記ゆれを除いた比較キー。
+ */
 export function normalizedSeriesName(value = "") {
   return String(value)
     .normalize("NFKC")

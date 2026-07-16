@@ -3,7 +3,9 @@ import { stripIsbn } from "./isbn.mjs";
 
 const EDITABLE_BOOK_FIELDS = [
   "title",
+  "titleReading",
   "author",
+  "authorReading",
   "publisher",
   "published",
   "pages",
@@ -24,11 +26,20 @@ const EDITABLE_BOOK_FIELDS = [
   "reminderNote",
 ];
 
+/**
+ * 検証済み入力から、保存に必要な既定値を含む手動登録レコードを作る。
+ *
+ * @param {Record<string, unknown>} input validateBookCreateInputの戻り値。
+ * @param {{id: string, sortOrder: number, timestamp: string}} context サーバー生成値。
+ * @returns {import("../src/types.js").Book} 新しい蔵書レコード。
+ */
 export function createManualBookRecord(input, { id, sortOrder, timestamp }) {
   return applyBookDefaults({
     id,
     title: String(input.title).trim(),
+    titleReading: String(input.titleReading || ""),
     author: String(input.author || "著者情報なし"),
+    authorReading: String(input.authorReading || ""),
     isbn: stripIsbn(input.isbn || ""),
     publisher: String(input.publisher || ""),
     published: String(input.published || ""),
@@ -57,6 +68,14 @@ export function createManualBookRecord(input, { id, sortOrder, timestamp }) {
   });
 }
 
+/**
+ * 既存蔵書へ検証済み編集項目だけを適用する。
+ *
+ * @param {import("../src/types.js").Book} book 更新元。
+ * @param {Record<string, unknown>} changes validateBookUpdateInputの戻り値。
+ * @param {{index: number, timestamp: string}} context 互換既定値と更新日時。
+ * @returns {import("../src/types.js").Book} 更新後の新しいオブジェクト。
+ */
 export function updateBookRecord(book, changes, { index, timestamp }) {
   const updatedBook = { ...book };
   for (const field of EDITABLE_BOOK_FIELDS) {
@@ -69,7 +88,19 @@ export function updateBookRecord(book, changes, { index, timestamp }) {
   return applyBookDefaults(updatedBook, index);
 }
 
-/** 再取得する書誌より、ユーザーが設定した所蔵・分類・読書状態を優先して統合する。 */
+/**
+ * 再取得する書誌より、利用者が設定した所蔵・分類・読書状態を優先して統合する。
+ *
+ * @param {object} values 統合材料。
+ * @param {import("../src/types.js").Book|null} values.existingBook 同一ISBNの既存蔵書。
+ * @param {import("../src/types.js").BookMetadata} values.metadata 外部書誌。
+ * @param {string} values.isbn 正規化済みISBN-13。
+ * @param {string} values.id 保存ID。
+ * @param {number} values.sortOrder 手動並び順。
+ * @param {import("../src/types.js").UploadRecord|null} values.uploadRecord 元画像記録。
+ * @param {string} values.timestamp 更新日時。
+ * @returns {import("../src/types.js").Book} 統合済み蔵書。
+ */
 export function mergeImportedBookRecord({
   existingBook,
   metadata,
@@ -84,6 +115,8 @@ export function mergeImportedBookRecord({
     id,
     ...metadata,
     isbn,
+    titleReading: existingBook?.titleReading || metadata.titleReading || "",
+    authorReading: existingBook?.authorReading || metadata.authorReading || "",
     shelf: existingBook?.shelf || "新着 / 未整理",
     tags: metadata.tags?.length ? metadata.tags : existingBook?.tags || ["自動登録"],
     status: existingBook?.status || "未読",
@@ -103,6 +136,14 @@ export function mergeImportedBookRecord({
   });
 }
 
+/**
+ * 指定IDを先頭から並べ、指定されなかった蔵書を元順序で後続させる。
+ *
+ * @param {import("../src/types.js").Book[]} books 全蔵書。
+ * @param {string[]} requestedIds 希望順ID。
+ * @param {string} timestamp 更新日時。
+ * @returns {import("../src/types.js").Book[]} 入力配列を変更しない並び替え結果。
+ */
 export function reorderBookRecords(books, requestedIds, timestamp) {
   const requestedOrder = new Map(requestedIds.map((id, index) => [String(id), index]));
   const trailingStart = books.length;

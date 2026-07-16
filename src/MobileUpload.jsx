@@ -103,6 +103,10 @@ function formatSyncedAt(value) {
   return new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
 
+/**
+ * @param {{initialMode?: "add"|"check"}} props 初期表示モード。
+ * @returns {import("react").ReactElement} LAN登録・重複確認画面。
+ */
 export function MobileUpload({ initialMode = "add" }) {
   const [mode, setMode] = useState(initialMode);
   const [file, setFile] = useState(null);
