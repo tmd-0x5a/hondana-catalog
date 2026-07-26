@@ -6,24 +6,48 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build-and-release:
+  build:
     runs-on: windows-latest
     timeout-minutes: 30
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
     steps:
       - name: Check out tagged source
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            packaging/package-lock.json
 
-      - name: Install exact dependencies
+      - name: Install exact application dependencies
         run: npm ci
+
+      - name: Install exact packaging dependencies
+        run: npm --prefix packaging ci
+
+      - name: Audit application dependencies
+        run: npm run security:audit
+
+      - name: Audit isolated packaging dependencies
+        run: npm run security:audit:packaging
 
       - name: Lint
         run: npm run lint
@@ -34,27 +58,68 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Build Windows portable app
-        run: npm run dist:win
-
       - name: Verify tag matches package version
+        id: metadata
         shell: pwsh
         run: |
           $version = (Get-Content package.json | ConvertFrom-Json).version
           if ("${{ github.ref_name }}" -ne "v$version") {
             throw "Tag ${{ github.ref_name }} does not match package version v$version."
           }
+          "version=$version" >> $env:GITHUB_OUTPUT
 
-      - name: Create release and upload checksummed executable
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Windows portable app
+        run: npm --prefix packaging run build:windows
+
+      - name: Create SHA-256 checksum
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $version = "${{ steps.metadata.outputs.version }}"
           $asset = "release/Hondana-Catalog-Portable-$version.exe"
           $checksumFile = "release/Hondana-Catalog-Portable-$version.sha256.txt"
           $hash = (Get-FileHash -Algorithm SHA256 $asset).Hash
           "$hash  $(Split-Path -Leaf $asset)" | Set-Content -Encoding ascii $checksumFile
+
+      - name: Attest executable provenance
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-path: release/Hondana-Catalog-Portable-${{ steps.metadata.outputs.version }}.exe
+
+      - name: Upload verified release assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-portable-${{ steps.metadata.outputs.version }}
+          path: |
+            release/Hondana-Catalog-Portable-${{ steps.metadata.outputs.version }}.exe
+            release/Hondana-Catalog-Portable-${{ steps.metadata.outputs.version }}.sha256.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Download verified release assets
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: windows-portable-${{ needs.build.outputs.version }}
+          path: release
+
+      - name: Create release and upload assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ needs.build.outputs.version }}"
+          $asset = "release/Hondana-Catalog-Portable-$version.exe"
+          $checksumFile = "release/Hondana-Catalog-Portable-$version.sha256.txt"
           gh release create "${{ github.ref_name }}" $asset $checksumFile `
             --title "本棚カタログ $version" `
             --generate-notes `

@@ -65,6 +65,7 @@ flowchart LR
 | `src/MobileUpload.jsx` | iPhone撮影、端末内バーコード解析、LAN送信、持ち出し本棚 |
 | `src/api.js` | JSON APIの共通エラー処理 |
 | `src/types.js` | JSDocで共有するBook、Upload、Series、Filterのデータ契約 |
+| `packaging/` | `electron-builder`と配布用ロックファイルをアプリ依存から隔離するビルド境界 |
 
 ## データの流れ
 

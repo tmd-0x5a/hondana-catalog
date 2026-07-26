@@ -20,11 +20,12 @@
 
 ## ダウンロード
 
-[GitHub Releases](https://github.com/tmd-0x5a/hondana-catalog/releases/latest) から `Hondana-Catalog-Portable-0.5.0.exe` をダウンロードしてください。
+[GitHub Releases](https://github.com/tmd-0x5a/hondana-catalog/releases/latest) から `Hondana-Catalog-Portable-0.5.1.exe` をダウンロードしてください。
 
 - インストール不要のWindows x64向けポータブル版です。
 - EXEを起動すると、ブラウザとは別のアプリウィンドウで開きます。
 - GitHub Releasesには、同名の`.sha256.txt`も添付します。ダウンロード後のファイル検証に使えます。
+- GitHub Actionsで作成したEXEには、リポジトリとビルド手順を確認できる成果物証明を付与します。GitHub CLIでは `gh attestation verify Hondana-Catalog-Portable-0.5.1.exe --repo tmd-0x5a/hondana-catalog` で検証できます。
 - 現在の配布EXEは商用コード署名証明書を使用していないため、Windows SmartScreenが確認を表示する場合があります。配布元とファイル名を確認してから実行してください。
 - Windows Defender ファイアウォールの確認では、iPhone連携に使う場合のみ「プライベート ネットワーク」を許可してください。
 
@@ -167,7 +168,7 @@ npm install
 npm run desktop
 ```
 
-開発中の最新版を独立したElectron画面で確認するコマンドは `npm run desktop` です。作成済みの配布版は `release\Hondana-Catalog-Portable-0.5.0.exe` を直接実行します。旧版とは別ファイルなので混在時も区別できます。
+開発中の最新版を独立したElectron画面で確認するコマンドは `npm run desktop` です。作成済みの配布版は `release\Hondana-Catalog-Portable-0.5.1.exe` を直接実行します。旧版とは別ファイルなので混在時も区別できます。
 
 コード品質の検査はまとめて実行できます。
 
@@ -177,7 +178,7 @@ npm run check   # lint + 型検査 + テスト + ビルド
 
 `npm run lint`（ESLint）、`npm run typecheck`（TypeScriptによるJSDoc型検査）、`npm test` は個別にも実行できます。mainへのpushとPull RequestではGitHub Actionsが同じ検査を自動実行します。
 
-`v*`タグをGitHubへプッシュすると、GitHub ActionsがWindows上でテストとポータブル版ビルドを実行し、EXEとSHA-256ファイルをGitHub Releasesへ公開します。
+`v*`タグをGitHubへプッシュすると、GitHub ActionsがWindows上で監査、テスト、ポータブル版ビルド、成果物証明を実行し、EXEとSHA-256ファイルをGitHub Releasesへ公開します。配布ツールの依存は `packaging/` に隔離され、通常のアプリ依存には含まれません。
 
 フロントエンドとAPIサーバーを分けて起動する場合は、別々のターミナルで実行します。
 

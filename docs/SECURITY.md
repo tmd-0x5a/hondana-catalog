@@ -33,13 +33,22 @@
 
 ## 4. 依存関係
 
-- `npm audit`をリリース前に実施する。
-- 2026-07-27の`npm audit --omit=dev`で、配布アプリが使う実行時依存の既知脆弱性は0件。`fast-xml-parser 5.10.1`へ更新済み。
-- 開発依存まで含めた`npm audit`では、`electron-builder 26.11.1`が内部で使うパッケージにhigh 23件の警告が残る。該当パッケージは配布EXEへ含めず、信頼済みのリポジトリだけをローカルまたは隔離されたGitHub Actionsでビルドする。互換性のない推移依存の強制置換は行わず、Windows配布ビルドを通過する修正版の公開後に更新する。
+- アプリ依存はルートの`package-lock.json`、配布ツールは`packaging/package-lock.json`で別々に固定する。
+- 2026-07-27のルート`npm audit`では、実行時・開発時を合わせた既知脆弱性は0件。
+- `electron-builder 26.15.7`の推移依存にはhigh 16件が残る。これは旧構成のhigh 23件から減少したが0件ではない。配布専用の`packaging/`へ隔離し、EXEへビルドツール自体を含めず、CIではcriticalを失敗条件として監視する。
+- `npm run security:audit`と`npm run security:audit:packaging`をCIとリリース前に実施する。互換性のない推移依存の強制置換は行わず、Windows配布ビルドを通過する上流修正版へ更新する。
 - ElectronはChromiumとNode.jsを同梱するため、安定版更新とリリース再作成を継続する。
-- ビルド専用パッケージは`devDependencies`へ分離し、実行時依存を減らす。
+- Dependabotでルートnpm、配布用npm、GitHub Actionsを定期確認する。
 
-## 5. 残余リスク
+## 5. 配布経路
+
+- CIとビルドジョブの`GITHUB_TOKEN`は読み取り専用とし、Releaseへ書き込める権限は検証済み成果物を公開する最終ジョブだけへ付与する。
+- 外部Actionは移動可能なタグ名ではなく、公式リポジトリで確認した完全なコミットSHAへ固定する。Dependabotの更新時も差分と上流リリースを確認する。
+- チェックアウト時のGit認証情報はワークツリーへ残さない。
+- EXEのSHA-256ファイルに加え、GitHub Artifact Attestationsでリポジトリ、コミット、ビルドワークフローに結び付いた来歴証明を生成する。
+- タグのバージョンと`package.json`のバージョンが一致しない場合は、ビルド前にリリースを停止する。
+
+## 6. 残余リスク
 
 | リスク | 理由 | 運用上の対応 |
 | --- | --- | --- |
@@ -49,20 +58,24 @@
 | PC内バックアップのみ | `.bak`と日次スナップショット7世代はPC故障・盗難には無力 | `data/`の別媒体コピー、または`/api/export/books`のJSONを定期保存する |
 | 外部データ誤り | 書誌APIの登録漏れ・版違い | 現物、出版社、書店情報でも確認する |
 | マルウェア検査 | ローカルアプリ内でAVエンジンを持たない | Windows Defenderを有効にし、画像以外を受け付けない現行制限を維持する |
+| 配布ツールの推移依存 | `electron-builder`上流にhigh警告が残る | 隔離したロックファイル、critical監査、Dependabot、上流更新で継続監視する |
+| コード署名なし | 商用コード署名証明書を使用していない | ReleaseのSHA-256と`gh attestation verify`で出所を確認し、SmartScreen警告時は安易に続行しない |
+| CI基盤侵害 | GitHub ActionsやWindows runnerを完全には自前検証できない | ActionのSHA固定、最小権限、ジョブ分離、成果物証明で影響と検知範囲を限定する |
 
-## 6. 公開・運用チェック
+## 7. 公開・運用チェック
 
 1. ルーターのポート転送、DMZ配置、インターネット公開を行わない。
 2. Windows Firewallではプライベートネットワークだけ許可する。
 3. QRに含まれるURLをスクリーンショットやログとして公開しない。再起動でトークンは失効する。
-4. `npm audit`と`npm run check`（lint、型検査、テスト、ビルド）をリリース前に通す。pushとPRではCIが同じ検査を実行する。
+4. `npm run security:audit`、`npm run security:audit:packaging`、`npm run check`（lint、型検査、テスト、ビルド）をリリース前に通す。pushとPRではCIが同じ検査を実行する。
 5. `data/`、`release/`、個人写真がGit追跡されていないことを確認する。
 6. セキュリティ上の問題を見つけた場合、公開Issueへ個人データや再現用トークンを貼らない。
 
-## 7. 参照基準
+## 8. 参照基準
 
 - [Electron Security](https://www.electronjs.org/docs/latest/tutorial/security)
 - [Express Production Security Best Practices](https://expressjs.com/en/advanced/best-practice-security.html)
 - [OWASP Input Validation Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html)
 - [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html)
 - [Node.js Crypto: timingSafeEqual](https://nodejs.org/api/crypto.html#cryptotimingsafeequala-b)
+- [GitHub Artifact Attestations](https://docs.github.com/actions/security-for-github-actions/using-artifact-attestations)

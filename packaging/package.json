@@ -1,0 +1,16 @@
+{
+  "name": "hondana-catalog-packaging",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Isolated Windows packaging dependencies for Hondana Catalog",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build:windows": "electron-builder --projectDir .. --win portable --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron-builder": "26.15.7"
+  }
+}

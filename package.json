@@ -1,6 +1,6 @@
 {
   "name": "bookshelf-prototype",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Windows PCとiPhoneのLAN連携で使う個人向け蔵書管理アプリ",
   "author": "tmd-0x5a",
   "license": "MIT",
@@ -17,14 +17,15 @@
     "typecheck": "tsc -p jsconfig.json",
     "format": "prettier --write .",
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
-    "security:audit": "npm audit",
+    "security:audit": "npm audit --audit-level=high",
+    "security:audit:packaging": "npm audit --prefix packaging --audit-level=critical",
     "dev": "vite",
     "server": "node server/index.mjs",
     "app": "npm run build && node server/index.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "desktop": "npm run build && electron electron/main.mjs",
-    "dist:win": "npm run build && electron-builder --win portable --x64"
+    "dist:win": "npm run build && npm --prefix packaging ci && npm --prefix packaging run build:windows"
   },
   "dependencies": {
     "@zxing/browser": "^0.2.0",
@@ -47,7 +48,6 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.0.4",
     "electron": "43.1.1",
-    "electron-builder": "26.11.1",
     "eslint": "10.8.0",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.7.0",
