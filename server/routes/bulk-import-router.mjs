@@ -19,8 +19,8 @@ function createScreenshotUploadMiddleware() {
       fieldNameSize: 100,
     },
     fileFilter(_request, file, callback) {
-      const allowed = ALLOWED_SCREENSHOT_TYPES.has(file.mimetype);
-      callback(allowed ? null : httpError(400, "JPEG、PNG、WebP、HEIC画像を選択してください。"), allowed);
+      if (ALLOWED_SCREENSHOT_TYPES.has(file.mimetype)) return callback(null, true);
+      callback(httpError(400, "JPEG、PNG、WebP、HEIC画像を選択してください。"));
     },
   });
 }
@@ -41,8 +41,9 @@ export function createBulkImportRouter({ bulkImportService, screenshotImportServ
     screenshotRateLimit,
     screenshotUpload.array("screenshots", MAX_OCR_SCREENSHOTS),
     asyncRoute(async (request, response) => {
-      if (!request.files?.length) throw httpError(400, "スクリーンショットを選択してください。");
-      response.json(await screenshotImportService.scanScreenshots(request.files));
+      const files = /** @type {Express.Multer.File[]} */ (request.files);
+      if (!files?.length) throw httpError(400, "スクリーンショットを選択してください。");
+      response.json(await screenshotImportService.scanScreenshots(files));
     }),
   );
 

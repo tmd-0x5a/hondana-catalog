@@ -1,0 +1,298 @@
+/* 小型画面レイアウト調整 */
+@media (max-width: 1180px) {
+  .top-row {
+    grid-template-columns: minmax(260px, 1fr) 128px 168px;
+  }
+
+  .isbn-button {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell,
+  .app-shell.wide-workspace {
+    grid-template-columns: 132px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding: 20px 8px 16px;
+  }
+
+  .brand {
+    min-height: 60px;
+    gap: 8px;
+    padding: 0 6px;
+  }
+
+  .brand svg {
+    width: 22px;
+  }
+
+  .brand strong {
+    font-size: 14px;
+  }
+
+  .brand span {
+    font-size: 10px;
+  }
+
+  .lan-card {
+    padding: 10px;
+  }
+
+  .lan-card span,
+  .lan-card code,
+  .qr-tile {
+    display: none;
+  }
+
+  .lan-card button {
+    min-height: 34px;
+    margin-top: 8px;
+    font-size: 10px;
+  }
+
+  .search-console {
+    padding: 18px 18px 14px;
+  }
+
+  .top-row {
+    grid-template-columns: minmax(120px, 0.75fr) minmax(160px, 1fr);
+    gap: 8px;
+  }
+
+  .top-row .search-field {
+    grid-column: 1 / -1;
+  }
+
+  .utility-button,
+  .primary-button {
+    min-height: 44px;
+  }
+
+  .filter-row {
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .filter-select {
+    min-width: 126px;
+    flex: 1 1 126px;
+  }
+
+  .filter-row button {
+    padding: 0 11px;
+  }
+
+  .shelf-toolbar {
+    min-height: 54px;
+    padding: 9px 18px;
+  }
+
+  .library-stage {
+    margin: 0 12px 12px 18px;
+  }
+
+  .cover-strip {
+    gap: 12px;
+    padding: 22px 18px 0;
+  }
+
+  .series-detail-view,
+  .recommendation-view {
+    padding: 18px;
+  }
+
+  .recommendation-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
+  .detail-pane {
+    width: min(390px, calc(100vw - 132px));
+  }
+}
+
+@media (max-width: 780px) {
+  .app-shell,
+  .app-shell.wide-workspace {
+    grid-template-columns: 68px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding: 14px 6px 12px;
+    gap: 8px;
+  }
+
+  .brand {
+    min-height: 52px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .brand > div,
+  .nav-section-title,
+  .sidebar-nav button > span,
+  .sidebar-nav button > b,
+  .platform-nav-row,
+  .lan-card {
+    display: none;
+  }
+
+  .sidebar-nav {
+    gap: 6px;
+  }
+
+  .sidebar-nav > button {
+    position: relative;
+    width: 44px;
+    min-height: 38px;
+    justify-self: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .console-title {
+    margin-bottom: 10px;
+    font-size: 18px;
+  }
+
+  .connection-status {
+    font-size: 10px;
+  }
+
+  .search-console {
+    padding: 15px 14px 12px;
+  }
+
+  .search-field {
+    min-height: 44px;
+  }
+
+  .shelf-toolbar {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .shelf-toolbar > span {
+    display: none;
+  }
+
+  .shelf-toolbar-actions {
+    min-width: 0;
+    justify-self: end;
+  }
+
+  .shelf-toolbar-actions > button {
+    width: 36px;
+    padding: 0;
+  }
+
+  .shelf-toolbar-actions > button > span {
+    display: none;
+  }
+
+  .primary-button small {
+    display: none;
+  }
+
+  .library-stage {
+    margin: 0 10px 10px;
+  }
+
+  .cover-strip {
+    padding-inline: 14px;
+  }
+
+  .section-divider {
+    padding-inline: 14px;
+  }
+
+  .series-detail-header,
+  .recommendation-header {
+    display: grid;
+  }
+
+  .series-detail-header > button {
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .recommendation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-pane {
+    width: min(390px, calc(100vw - 68px));
+  }
+
+  .modal-backdrop {
+    padding: 10px;
+  }
+
+  .bulk-import-modal {
+    padding: 16px;
+  }
+
+  .bulk-data-field textarea {
+    min-height: 180px;
+  }
+
+  .scan-candidate {
+    grid-template-columns: 24px 42px minmax(0, 1fr);
+  }
+
+  .scan-candidate > img {
+    width: 42px;
+    height: 60px;
+  }
+
+  .scan-alternative {
+    grid-column: 3;
+  }
+}
+
+@media (max-height: 650px) {
+  .sidebar {
+    padding-top: 10px;
+  }
+
+  .brand {
+    min-height: 44px;
+  }
+
+  .search-console {
+    padding-top: 12px;
+    padding-bottom: 10px;
+  }
+
+  .console-title {
+    margin-bottom: 8px;
+  }
+
+  .top-row {
+    gap: 7px;
+  }
+
+  .filter-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .filter-select,
+  .filter-row button {
+    flex: 0 0 auto;
+  }
+
+  .shelf-toolbar {
+    min-height: 48px;
+    padding-block: 6px;
+  }
+
+  .detail-cover img {
+    width: 104px;
+    height: 148px;
+  }
+}

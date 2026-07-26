@@ -69,8 +69,14 @@ test("HTTPルートはサービス結果を既存のAPI形式で返す", async (
   const screenshotForm = new FormData();
   screenshotForm.append("screenshots", new Blob(["test image"], { type: "image/jpeg" }), "kindle.jpg");
   const scanResponse = await fetch(`${baseUrl}/api/books/bulk/scan`, { method: "POST", body: screenshotForm });
+  const exportResponse = await fetch(`${baseUrl}/api/export/books`);
 
   assert.equal((await healthResponse.json()).ok, true);
+  assert.equal(exportResponse.status, 200);
+  assert.match(exportResponse.headers.get("content-disposition"), /attachment; filename="hondana-books-\d{4}-\d{2}-\d{2}\.json"/);
+  const exported = await exportResponse.json();
+  assert.equal(exported.count, 1);
+  assert.deepEqual(exported.books, [{ id: "book-1", title: "既存本" }]);
   assert.deepEqual((await booksResponse.json()).books, [{ id: "book-1", title: "既存本" }]);
   assert.equal(createResponse.status, 201);
   assert.equal((await createResponse.json()).book.title, "新しい本");

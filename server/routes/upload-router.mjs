@@ -25,8 +25,8 @@ function createImageUploadMiddleware() {
       fieldSize: 256,
     },
     fileFilter(_request, file, callback) {
-      const allowed = ALLOWED_IMAGE_TYPES.has(file.mimetype);
-      callback(allowed ? null : httpError(400, "画像ファイルを選択してください。"), allowed);
+      if (ALLOWED_IMAGE_TYPES.has(file.mimetype)) return callback(null, true);
+      callback(httpError(400, "画像ファイルを選択してください。"));
     },
   });
 }

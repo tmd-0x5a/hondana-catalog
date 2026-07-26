@@ -43,9 +43,9 @@ flowchart LR
 | `server/windows-ocr-service.mjs` / `windows-ocr.ps1` | 検証済み画像の一時保存、Windows内蔵OCR呼び出し、確実な一時ファイル削除 |
 | `server/book-screenshot-import-service.mjs` | OCR行の正規化、NDLへの逐次候補検索、確認画面用候補の生成 |
 | `server/series-service.mjs` | 所持巻と刊行巻の比較、シリーズ追跡結果の保存 |
-| `server/recommendation-service.mjs` | 読了・評価済み蔵書の選定、著者別候補、所蔵済み除外 |
+| `server/book-pack-service.mjs` | 蔵書のジャンル比率とレア枠の抽選、候補探索、紹介文優先、日次パックの保存 |
 | `server/upload-service.mjs` | 画像保存、解析状態、アップロード履歴、ISBN確定 |
-| `server/library-repository.mjs` | `books.json`と`uploads.json`の保存境界、初期データ作成 |
+| `server/library-repository.mjs` | `books.json`と`uploads.json`の保存境界、初期データ作成、日次スナップショットの世代管理 |
 | `server/book-metadata-service.mjs` | openBDとGoogle Booksの書誌統合 |
 | `server/ndl-catalog-service.mjs` | NDL候補検索、シリーズ巻検索、XML変換、短期キャッシュ |
 | `server/cover-service.mjs` | 表紙候補の取得、画像検証、WebP変換、ローカルキャッシュ |
@@ -55,10 +55,13 @@ flowchart LR
 | `server/isbn.mjs` | ISBNの整形、検証、ISBN-10からISBN-13への変換 |
 | `server/offline-library.mjs` | 店頭へ持ち出す自己完結HTMLの安全な生成 |
 | `src/DesktopLibrary.jsx` | PC本棚の状態、API操作、各独立ビューの調停 |
-| `src/components/` | 本棚、詳細フィルター、表示設定、一括取り込み、シリーズ詳細、おすすめの表示責務 |
+| `src/components/` | サイドバー、本棚、詳細パネル、各モーダル、詳細フィルター、表示設定、一括取り込み、シリーズ詳細、おすすめ、Error Boundaryの表示責務 |
+| `src/hooks/use-library-filters.js` | 絞り込み条件8種の一括管理reducer |
+| `src/styles/` | 画面部位ごとに分割したCSS。`index.css`が記載順にインポートしカスケードを保つ |
 | `src/library-model.js` | 検索・絞り込み・並び替え・棚見出し・シリーズ表示モデルの純粋関数 |
 | `src/bulk-import-model.js` | ISBN一覧とタブ区切り書誌をAPI入力へ変換する純粋関数 |
 | `src/library-preferences.js` | 本の大きさ、見出し、シリーズ集約のlocalStorage境界 |
+| `src/pack-reveal-store.js` | めくったカードを日付ごとに覚えるlocalStorage境界 |
 | `src/MobileUpload.jsx` | iPhone撮影、端末内バーコード解析、LAN送信、持ち出し本棚 |
 | `src/api.js` | JSON APIの共通エラー処理 |
 | `src/types.js` | JSDocで共有するBook、Upload、Series、Filterのデータ契約 |
@@ -70,7 +73,7 @@ flowchart LR
 3. ISBNは保存前に13桁へ正規化し、同じISBNの再登録は所蔵情報を残した更新として扱います。
 4. 表紙は外部URLのままにせず、取得できた画像をWebPへ変換して `covers/` に保存します。
 5. iPhone写真は端末内で先に解析し、失敗時だけ元画像をPCへ送り、より広い探索を行います。
-6. 電子書店スクリーンショットはPC内のWindows OCRだけで画像解析し、抽出した書名候補をNDLへ逐次送信します。登録は利用者の候補確認後に既存のISBN一括処理へ渡します。
+6. 電子書店スクリーンショットはPC内のWindows OCRだけで画像解析し、断片統合・著者行除外を経た書名候補（1枚最大12件・全体最大60件）をNDLのSRUへ10件ずつまとめて送信します。ISBNを取得できない候補は書名のみの手動書誌として、取得できた候補と同じ一括処理へ渡します。
 
 ## 守るべき前提
 
@@ -81,6 +84,8 @@ flowchart LR
 - 信頼できないHTTP入力は`request-validation.mjs`または画像検査を通過するまでサービス・外部API・保存層へ渡しません。
 - JSONの読込・変更・保存はファイル単位の更新トランザクションとして直列化し、一時ファイルから置換します。直前の正常な内容は `.bak` に残し、主ファイルのJSONが壊れた場合に読み戻します。
 - UIの検索・並び替え規則は `library-model.js` に集約し、Reactコンポーネント内へ重複させません。
+- ESLintとTypeScript checkJs（`npm run lint` / `npm run typecheck`）を通る状態を維持します。型検査の対象はロジック層（`server/`、`electron/`、`src/*.js`）で、UIコンポーネントはESLintのreact・react-hooksルールで検査します。
+- 描画例外は`AppErrorBoundary`が受け止め、白画面ではなく再読み込み手順を表示します。
 - 持ち出しHTMLは外部スクリプトを読み込まず、埋め込みJSONのscript終端を必ずエスケープします。
 - `normalizeIsbn` を通していないISBNを保存キーや重複判定に使いません。
 - 外部APIの一部が失敗しても、ISBNだけで登録を継続できる状態を保ちます。

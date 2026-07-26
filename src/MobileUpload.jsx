@@ -193,7 +193,7 @@ export function MobileUpload({ initialMode = "add" }) {
         setPhase("detected");
         setMessage(`ISBN ${detected} を読み取りました。`);
       }
-    } catch (error) {
+    } catch {
       if (mode === "check") {
         setPhase("error");
         setMessage("読み取れませんでした。タイトルまたはISBNで検索してください。");

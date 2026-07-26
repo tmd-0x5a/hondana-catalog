@@ -1,0 +1,283 @@
+/* 蔵書編集モーダルと書誌候補 */
+.edit-modal {
+  width: min(720px, 100%);
+  max-height: min(90vh, 820px);
+  padding: 22px;
+  overflow-y: auto;
+  border: 1px solid rgba(226, 204, 150, 0.3);
+  border-radius: 8px;
+  background: #171b17;
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.62);
+}
+
+.edit-modal header,
+.edit-modal header > div,
+.edit-modal footer {
+  display: flex;
+  align-items: center;
+}
+
+.edit-modal header {
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.edit-modal header > div {
+  gap: 10px;
+  color: #dcc482;
+}
+
+.edit-modal header strong {
+  font-size: 18px;
+}
+
+.edit-modal header > button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.edit-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px 16px;
+}
+
+.edit-form-grid label,
+.segmented-field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+  border: 0;
+}
+
+.edit-form-grid label > span,
+.segmented-field legend {
+  color: #a99d88;
+  font-size: 11px;
+}
+
+.wide-field {
+  grid-column: 1 / -1;
+}
+
+.title-suggestion-field {
+  position: relative;
+  display: grid;
+  gap: 8px;
+}
+
+.title-suggestion-field > label {
+  display: grid;
+  gap: 7px;
+}
+
+.suggest-spinner {
+  position: absolute;
+  top: 35px;
+  right: 12px;
+  color: #86aa7d;
+}
+
+.selected-suggestion {
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(126, 169, 111, 0.3);
+  border-radius: 6px;
+  background: rgba(56, 84, 53, 0.2);
+}
+
+.selected-suggestion img {
+  width: 34px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.selected-suggestion strong,
+.selected-suggestion small {
+  display: block;
+}
+
+.selected-suggestion strong {
+  color: #c4d5bd;
+  font-size: 11px;
+}
+
+.selected-suggestion small {
+  margin-top: 4px;
+  color: #8d9d88;
+  font-size: 9px;
+}
+
+.book-suggestions {
+  position: absolute;
+  z-index: 8;
+  top: 70px;
+  left: 0;
+  right: 0;
+  max-height: 330px;
+  overflow-y: auto;
+  border: 1px solid rgba(226, 204, 150, 0.28);
+  border-radius: 7px;
+  background: #111612;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.58);
+  scrollbar-width: thin;
+}
+
+.book-suggestions > button {
+  width: 100%;
+  min-height: 72px;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: #e7decd;
+  text-align: left;
+}
+
+.book-suggestions > button:hover {
+  background: rgba(75, 112, 74, 0.35);
+}
+
+.book-suggestions img {
+  width: 38px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.book-suggestions strong,
+.book-suggestions small,
+.book-suggestions code {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.book-suggestions strong {
+  font-size: 12px;
+}
+
+.book-suggestions small {
+  margin-top: 4px;
+  color: #9c9282;
+  font-size: 10px;
+}
+
+.book-suggestions code {
+  margin-top: 4px;
+  color: #87a981;
+  font-size: 9px;
+}
+
+.book-suggestions > a {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #8d9789;
+  font-size: 9px;
+  text-decoration: none;
+}
+
+.edit-form-grid input,
+.edit-form-grid select,
+.edit-form-grid textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  outline: 0;
+  background: rgba(6, 9, 7, 0.5);
+  color: #ece4d5;
+}
+
+.edit-form-grid textarea {
+  min-height: 76px;
+  padding-block: 10px;
+  resize: vertical;
+}
+
+.edit-form-grid input:focus,
+.edit-form-grid select:focus,
+.edit-form-grid textarea:focus {
+  border-color: #6c9a66;
+  box-shadow: 0 0 0 3px rgba(76, 118, 75, 0.2);
+}
+
+.edit-form-grid input:disabled {
+  color: #8f8779;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(5, 8, 6, 0.42);
+}
+
+.segmented-control button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #a9a08f;
+}
+
+.segmented-control button.selected {
+  background: #3f6742;
+  color: #f2ecdc;
+}
+
+.edit-modal footer {
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.edit-modal footer button {
+  min-height: 40px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.edit-modal footer .modal-submit {
+  border-color: rgba(120, 173, 116, 0.5);
+  background: #426b44;
+}
+
+.result-book small {
+  display: block;
+  margin-top: 7px;
+  color: #c6a85e;
+  font-size: 10px;
+}

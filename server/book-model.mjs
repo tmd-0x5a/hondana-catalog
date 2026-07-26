@@ -61,7 +61,7 @@ export function inferCategory(book = {}) {
 export function applyBookDefaults(book, index = 0) {
   const format = book.format === "electronic" ? "electronic" : "physical";
   const category = inferCategory(book);
-  return {
+  return /** @type {import("../src/types.js").Book} */ ({
     ...book,
     titleReading: book.titleReading || "",
     authorReading: book.authorReading || "",
@@ -87,7 +87,7 @@ export function applyBookDefaults(book, index = 0) {
     nextVolumeTitle: book.nextVolumeTitle || "",
     nextVolumeUrl: book.nextVolumeUrl || "",
     sortOrder: Number.isFinite(Number(book.sortOrder)) ? Number(book.sortOrder) : index,
-  };
+  });
 }
 
 /** @param {unknown} value 書名または巻表示。 @returns {number|null} 抽出できた巻数。 */

@@ -67,7 +67,10 @@ export class HttpClient {
    * @param {object} [options] requestと本文上限設定。
    * @param {string} [options.errorLabel="外部API"] エラー識別名。
    * @param {number} [options.maxBytes=2097152] JSON本文上限。
-   * @returns {Promise<unknown>} JSON.parse結果。
+   * @param {number} [options.timeoutMs] タイムアウト。
+   * @param {Record<string, string>} [options.headers] 追加ヘッダー。
+   * @param {RequestRedirect} [options.redirect] リダイレクト方針。
+   * @returns {Promise<any>} JSON.parse結果。
    */
   async getJson(url, { errorLabel = "外部API", maxBytes = 2 * 1024 * 1024, ...options } = {}) {
     const response = await this.request(url, options);
@@ -80,6 +83,9 @@ export class HttpClient {
    * @param {object} [options] requestと本文上限設定。
    * @param {string} [options.errorLabel="外部API"] エラー識別名。
    * @param {number} [options.maxBytes=2097152] テキスト本文上限。
+   * @param {number} [options.timeoutMs] タイムアウト。
+   * @param {Record<string, string>} [options.headers] 追加ヘッダー。
+   * @param {RequestRedirect} [options.redirect] リダイレクト方針。
    * @returns {Promise<string>} UTF-8本文。
    */
   async getText(url, { errorLabel = "外部API", maxBytes = 2 * 1024 * 1024, ...options } = {}) {

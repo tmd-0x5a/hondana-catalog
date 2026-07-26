@@ -15,6 +15,7 @@ const ALLOWED_COVER_HOSTS = new Set([
   "books.google.co.jp",
   "cover.openbd.jp",
   "covers.openlibrary.org",
+  "ndlsearch.ndl.go.jp",
 ]);
 
 /**
@@ -72,6 +73,15 @@ export class CoverService {
   #coverCandidates(isbn, preferredUrls) {
     return [
       ...preferredUrls.filter(isAllowedCoverUrl).map((url) => ({ url, headers: {} })),
+      // 日本の書籍はNDL書影のカバー率が高いため、Open Libraryより先に試す。
+      // NDLの配信はreferer・accept-languageのないリクエストを拒否する。
+      {
+        url: `https://ndlsearch.ndl.go.jp/thumbnail/${isbn}.jpg`,
+        headers: {
+          referer: "https://ndlsearch.ndl.go.jp/",
+          "accept-language": "ja,en-US;q=0.9",
+        },
+      },
       {
         url: `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`,
         headers: {},

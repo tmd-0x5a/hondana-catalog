@@ -1,0 +1,82 @@
+/* 中間幅レイアウト調整 */
+@media (max-width: 1050px) {
+  .release-row {
+    grid-template-columns: 70px minmax(190px, 1fr) 105px;
+  }
+
+  .release-actions {
+    grid-column: 2 / -1;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .edit-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wide-field {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 1480px) {
+  .app-shell,
+  .app-shell.wide-workspace {
+    grid-template-columns: 176px minmax(0, 1fr);
+  }
+
+  .detail-pane {
+    position: fixed;
+    z-index: 21;
+    inset: 0 0 0 auto;
+    width: min(390px, calc(100vw - 176px));
+    min-width: 320px;
+    visibility: hidden;
+    transform: translateX(100%);
+    transition: transform 180ms ease, visibility 180ms ease;
+    box-shadow: -24px 0 60px rgba(0, 0, 0, 0.52);
+  }
+
+  .detail-pane.compact-open {
+    visibility: visible;
+    transform: translateX(0);
+  }
+
+  .detail-scrim {
+    position: fixed;
+    z-index: 20;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: rgba(4, 7, 5, 0.62);
+    backdrop-filter: blur(2px);
+    cursor: pointer;
+  }
+
+  .detail-close {
+    position: sticky;
+    z-index: 2;
+    top: 0;
+    width: 36px;
+    height: 36px;
+    margin: 0 0 -42px auto;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: rgba(15, 18, 15, 0.92);
+    color: #bfb6a5;
+    cursor: pointer;
+  }
+
+  .top-row {
+    grid-template-columns: minmax(260px, 1fr) 128px 168px 160px;
+  }
+
+  .library-stage {
+    width: auto;
+    margin-right: 16px;
+  }
+}

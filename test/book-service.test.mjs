@@ -117,4 +117,40 @@ test("書誌補完では既存値を守りながら不足した読みと表紙�
   assert.equal(repository.books[0].titleReading, "しょめいのよみ");
   assert.equal(repository.books[0].authorReading, "利用者入力の著者よみ");
   assert.equal(repository.books[0].updatedAt, "2026-07-16T00:00:00.000Z");
+  assert.equal(repository.books[0].metadataCheckedAt, "2026-07-16T00:00:00.000Z");
+});
+
+test("書誌補完は確認日時で再試行を抑え、外部APIの呼び出し回数を制限する", async () => {
+  let apiCalls = 0;
+  const repository = new MemoryRepository([
+    // metadataSourceのない手動・サンプル由来の本も、ISBNがあれば補完対象になる。
+    { id: "manual-book", isbn: "9780306406157", coverUrl: "", titleReading: "", authorReading: "" },
+    // 不正ISBNはAPIを呼ばずに失敗し、確認日時だけ記録される。
+    { id: "broken-isbn", isbn: "978-4-き-000021-8", coverUrl: "" },
+    // 3日以内に確認済みの本は再試行しない。
+    { id: "recently-checked", isbn: "9784088821832", coverUrl: "", metadataCheckedAt: "2026-07-17T00:00:00.000Z" },
+  ]);
+  const service = new BookService({
+    repository,
+    metadataService: {
+      findByIsbn: async () => {
+        apiCalls += 1;
+        return { coverUrl: "/covers/9780306406157.webp", titleReading: "よみ", authorReading: "ちょしゃのよみ" };
+      },
+    },
+    coverService: { ensureCachedCover: async () => "" },
+    now: () => "2026-07-18T00:00:00.000Z",
+  });
+
+  await service.backfillMetadataGaps();
+
+  assert.equal(apiCalls, 1);
+  assert.equal(repository.books[0].coverUrl, "/covers/9780306406157.webp");
+  assert.equal(repository.books[0].metadataCheckedAt, "2026-07-18T00:00:00.000Z");
+  assert.equal(repository.books[1].metadataCheckedAt, "2026-07-18T00:00:00.000Z");
+  assert.equal(repository.books[2].metadataCheckedAt, "2026-07-17T00:00:00.000Z");
+
+  // 直後の再実行では、全冊が取得済みまたは確認済みのため外部APIを呼ばない。
+  await service.backfillMetadataGaps();
+  assert.equal(apiCalls, 1);
 });

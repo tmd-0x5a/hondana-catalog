@@ -37,6 +37,7 @@
 | --- | --- | --- | --- |
 | GET | `/api/health` | 稼働確認 | `{ok, service, port}` |
 | GET | `/api/config` | LAN URLとQR | `{lanIp, port, baseUrl, uploadUrl, authorizedUploadUrl, checkUrl, qrCode}` |
+| GET | `/api/export/books` | 蔵書JSONのバックアップ出力 | `application/json`添付。`{exportedAt, count, books}` |
 | GET | `/api/offline-library` | 持ち出し本棚 | `text/html`添付 |
 
 `authorizedUploadUrl`は画面表示・ログ保存を避け、QRまたはPCからの起動だけに使用する。
@@ -92,8 +93,10 @@ BookCreateの任意項目から`isbn`を除いた差分。空オブジェクト�
 ### BulkScreenshotScan
 
 - `screenshots`はJPEG、PNG、WebP、HEIC/HEIFの1〜12枚。1枚12MB、4000万画素まで。
-- 画像実体検査後に最大2400pxのJPEGへ再構築し、Windows内蔵OCRへ渡す。一時ファイルは応答前に削除する。
-- OCR行は最大120文字へ正規化し、タイトルらしさが高い最大10検索語だけを1秒以上空けてNDLサーチへ逐次送信する。画像自体は外部へ送信しない。
+- 画像実体検査後に最大2400pxのPNGへ再構築し、Windows内蔵OCRへ渡す。一時ファイルは応答前に削除する。
+- OCR行は最大120文字へ正規化する。表紙アート由来の断片行は完全な書名ラベル行へ統合し、著者行・レーベル行を除外して、1枚あたり最大12書名・全体最大60書名を抽出する。
+- 書名は10件ずつNDL SRUのOR条件へまとめ、1.3秒間隔で分割送信する。巻数付き書名は巻数なしの検索条件も加える。
+- 候補は書名類似度で選別し、同じ候補は最も類似する書名だけへ割り当てる。欧文並記（`書名 = ROMAJI. 巻`）は並記を除いた形とも比較し、巻数が異なる候補は正しい巻より上位にしない。ISBNを取得できない書名も手動書誌候補として返す。画像自体は外部へ送信しない。
 - `candidates`の各要素は`sourceText`と最大5件の`suggestions`を持つ。候補は`title`、`author`、`publisher`、`published`、`isbn`、`url`、`coverUrl`を含む。
 - OCR専用レート制限はクライアントIPごとに毎分4回。Windows以外は501を返す。
 
@@ -102,13 +105,21 @@ BookCreateの任意項目から`isbn`を除いた差分。空オブジェクト�
 - `:id`は英数字とハイフンの1〜64文字。
 - `ids`は1〜10000件、重複不可。指定されなかった蔵書は後方へ元順序で残る。
 
-## 5. おすすめAPI
+## 5. おすすめAPI（本のパック）
 
 | Method | Path | 入力 | 成功応答 |
 | --- | --- | --- | --- |
-| GET | `/api/recommendations` | なし | `200 {recommendations, seedCount, source}` |
+| GET | `/api/recommendations/pack` | なし | `200 {status, date, cards, openedAt, progress}` |
+| POST | `/api/recommendations/pack/open` | なし | `200 {status, date, cards, openedAt, progress}` |
 
-`recommendations`は最大8件で、`title`、`author`、`publisher`、`published`、`isbn`、`url`、`coverUrl`、`reason`を含む。所蔵済みISBNと同名タイトルは除外する。
+- `status`は`ready`または`preparing`。GETは生成完了を待たず、その時点の状態だけを即座に返す。
+- パックはサーバー起動時にバックグラウンドで生成を始める。未生成の日にGETすると生成を開始して`preparing`を返すため、クライアントは`ready`になるまで数秒間隔で取り直す。
+- `progress`は`{completed, total}`。生成中は候補が決まるたびに`completed`が進む。
+- `date`はローカル日付のYYYY-MM-DD。同じ日の2回目以降は保存済みパックをそのまま返し、外部APIを呼ばない。生成中の同時要求も1つの生成処理へまとめる。
+- `cards`は最大5件で、`isbn`、`title`、`author`、`publisher`、`published`、`coverUrl`、`description`、`url`、`genre`、`rare`、`reason`を含む。`rare`がtrueのカードは蔵書にないジャンルから選ばれた1枚。`preparing`の間は空配列。
+- `description`は紹介文。openBDまたはGoogle Booksから取得できなかった場合は空文字。
+- `openedAt`は開封済みならISO 8601日時、未開封ならnull。POSTは生成完了を待ってから開封し、初回だけ日時を記録する。
+- 所蔵済みISBNと同名タイトルは候補から除外する。カードの追加は`POST /api/isbn`を使う。
 
 ## 6. シリーズAPI
 

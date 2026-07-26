@@ -132,6 +132,28 @@ test("シリーズを一項目へまとめ、出版社順の棚見出しを作�
   assert.deepEqual(sections.map((section) => section.label), ["出版社A"]);
 });
 
+test("名前順は読みが同じ巻を巻数順に保ち、かな始まりは読みなしでも位置へ並べる", () => {
+  const shelf = [
+    { id: "volume-3", title: "SPY×FAMILY 3", titleReading: "スパイ ファミリー", volumeNumber: 3 },
+    { id: "kanji-title", title: "海の見える理髪店" },
+    { id: "volume-1", title: "SPY×FAMILY 1", titleReading: "スパイ ファミリー", volumeNumber: 1 },
+    { id: "kana-title", title: "コンビニ人間" },
+    { id: "volume-2", title: "SPY×FAMILY 2", titleReading: "スパイ ファミリー", volumeNumber: 2 },
+  ];
+  const result = filterAndSortBooks(shelf, {
+    categoryFilter: "all",
+    ownershipFilter: "all",
+    platformFilter: "all",
+    query: "",
+    sortMode: "title",
+    status: "すべて",
+    viewMode: "library",
+  });
+
+  // 同一読みの巻は昇順、かな始まりの「コンビニ人間」はか行の位置、読みのない漢字始まりだけ末尾。
+  assert.deepEqual(result.map((book) => book.id), ["kana-title", "volume-1", "volume-2", "volume-3", "kanji-title"]);
+});
+
 test("かな・英字を行見出しへ変換し、読みのない漢字を推測しない", () => {
   assert.equal(initialSectionLabel("オレンジ"), "あ行");
   assert.equal(initialSectionLabel("Kafka"), "A-Z");

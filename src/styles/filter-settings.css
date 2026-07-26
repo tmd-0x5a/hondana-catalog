@@ -1,0 +1,84 @@
+/* 詳細フィルターパネルと表示設定ポップオーバー */
+.advanced-filter-panel {
+  margin-top: 10px;
+  padding-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid rgba(222, 205, 166, 0.12);
+}
+
+.advanced-filter-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #9f927f;
+  font-size: 11px;
+}
+
+.settings-anchor {
+  position: relative;
+}
+
+.settings-anchor > button {
+  width: 36px;
+  padding: 0;
+}
+
+.library-settings {
+  position: absolute;
+  z-index: 15;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  padding: 14px;
+  display: grid;
+  gap: 13px;
+  border: 1px solid rgba(209, 178, 112, 0.28);
+  border-radius: 8px;
+  background: #171b17;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.52);
+}
+
+.library-settings header,
+.toggle-setting,
+.size-setting > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.library-settings header button {
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+
+.library-settings label {
+  color: #cfc4b1;
+  font-size: 12px;
+}
+
+.size-setting {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.size-setting input {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: #7ca46f;
+}
+
+.size-setting output {
+  color: #d9b86d;
+}
+
+.toggle-setting input {
+  width: 34px;
+  height: 18px;
+  accent-color: #6f9d67;
+}

@@ -3,13 +3,19 @@ import express from "express";
 import { asyncRoute } from "./async-route.mjs";
 
 /**
- * @param {{recommendationService: import("../recommendation-service.mjs").RecommendationService}} dependencies ルート依存。
- * @returns {import("express").Router} おすすめ取得ルーター。
+ * @param {{packService: import("../book-pack-service.mjs").BookPackService}} dependencies ルート依存。
+ * @returns {import("express").Router} 日次パック取得ルーター。
  */
-export function createRecommendationRouter({ recommendationService }) {
+export function createRecommendationRouter({ packService }) {
   const router = express.Router();
-  router.get("/api/recommendations", asyncRoute(async (_request, response) => {
-    response.json(await recommendationService.listRecommendations());
+
+  router.get("/api/recommendations/pack", asyncRoute(async (_request, response) => {
+    response.json(await packService.getTodaysPack());
   }));
+
+  router.post("/api/recommendations/pack/open", asyncRoute(async (_request, response) => {
+    response.json(await packService.openTodaysPack());
+  }));
+
   return router;
 }

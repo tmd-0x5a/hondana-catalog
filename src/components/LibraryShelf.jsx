@@ -14,12 +14,13 @@ function coverStyle(book) {
   return { backgroundImage: "url('/assets/selected-cover.png')" };
 }
 
-/** 一冊分の書影を選択操作へ結び付ける。 */
+/** 一冊分の書影を選択操作へ結び付ける。表紙未取得の本は背表紙風にタイトルを表示する。 */
 function BookCover({ book, selected, onSelect }) {
+  const missingCover = !book.coverUrl && !book.sprite;
   return (
     <button
       aria-label={`${book.title}を選択`}
-      className={`book-cover ${selected ? "is-selected" : ""}`}
+      className={`book-cover ${selected ? "is-selected" : ""} ${missingCover ? "no-cover" : ""}`}
       onClick={onSelect}
       style={coverStyle(book)}
       type="button"

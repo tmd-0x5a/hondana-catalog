@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "strict": false,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src", "server", "electron", "vite.config.mjs"],
+  "exclude": ["node_modules", "dist", "release", "qa", ".npm-cache", "data", "**/*.jsx"]
+}

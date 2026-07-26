@@ -1,0 +1,242 @@
+/* 検索コンソール・絞り込み行・本棚ツールバー */
+.workspace {
+  height: 100vh;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  background:
+    linear-gradient(180deg, rgba(47, 30, 19, 0.72), rgba(18, 16, 12, 0.82) 18%, rgba(12, 12, 10, 0.72)),
+    #171611;
+}
+
+.search-console {
+  padding: 24px 24px 18px;
+  border-bottom: 1px solid rgba(155, 104, 58, 0.32);
+  background:
+    linear-gradient(180deg, rgba(45, 31, 21, 0.9), rgba(28, 24, 19, 0.92)),
+    #221a13;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
+}
+
+.console-title {
+  margin-bottom: 14px;
+  color: #d8c8a5;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.top-row {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) 136px 186px 172px;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.search-field {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 15px;
+  border: 1px solid rgba(222, 205, 166, 0.24);
+  border-radius: 7px;
+  background: rgba(11, 11, 10, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.search-field:focus-within {
+  border-color: rgba(135, 174, 117, 0.75);
+  box-shadow: 0 0 0 3px rgba(71, 105, 71, 0.22);
+}
+
+.search-field input {
+  min-width: 0;
+  width: 100%;
+  color: #efe7d5;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 15px;
+}
+
+.search-field input::placeholder {
+  color: #827766;
+}
+
+.clear {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+}
+
+.utility-button {
+  color: #cfc5b2;
+}
+
+.primary-button,
+.isbn-button {
+  min-height: 50px;
+  padding: 0 16px;
+  text-align: left;
+}
+
+.primary-button {
+  border-color: rgba(120, 173, 116, 0.5);
+  background: linear-gradient(180deg, rgba(76, 118, 75, 0.95), rgba(58, 95, 60, 0.95));
+  color: #f5f0df;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.15),
+    0 10px 24px rgba(15, 45, 24, 0.26);
+}
+
+.isbn-button {
+  border-color: rgba(199, 154, 72, 0.62);
+  color: #e0ba70;
+  background: rgba(18, 17, 14, 0.58);
+}
+
+.primary-button span,
+.isbn-button span {
+  display: grid;
+}
+
+.primary-button small,
+.isbn-button small {
+  margin-top: 3px;
+  color: rgba(248, 239, 215, 0.68);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.filter-row button {
+  min-height: 34px;
+  padding: 0 16px;
+  color: #c7beac;
+  font-size: 13px;
+}
+
+.filter-select {
+  position: relative;
+  min-width: 142px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.filter-select span {
+  flex: 0 0 auto;
+  color: #817767;
+  font-size: 9px;
+}
+
+.filter-select select {
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  padding: 0 28px 0 0;
+  appearance: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #d8cebb;
+  font-size: 12px;
+}
+
+.filter-select option {
+  color: #ece4d4;
+  background: #171b17;
+}
+
+.filter-select svg {
+  position: absolute;
+  right: 9px;
+  pointer-events: none;
+}
+
+.filter-row .filter-clear {
+  margin-left: auto;
+  color: #b9ad99;
+}
+
+.filter-row button.selected,
+.view-toggle button.active {
+  border-color: rgba(125, 174, 112, 0.52);
+  background: rgba(75, 112, 74, 0.62);
+  color: #f4ebd9;
+}
+
+.condition-clear {
+  display: none;
+  margin-left: auto;
+  color: #6e965f;
+  font-size: 12px;
+}
+
+.shelf-toolbar {
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 24px;
+  color: #c5baa5;
+  font-size: 13px;
+}
+
+.shelf-toolbar > span {
+  justify-self: end;
+}
+
+.workspace.without-toolbar {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.shelf-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shelf-toolbar-actions > button.active {
+  border-color: rgba(125, 174, 112, 0.52);
+  background: rgba(75, 112, 74, 0.5);
+  color: #f4ebd9;
+}
+
+.shelf-toolbar button {
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.view-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.view-toggle button {
+  width: 34px;
+  min-height: 30px;
+  border: 0;
+}

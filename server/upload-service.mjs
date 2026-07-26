@@ -12,6 +12,7 @@ const SUCCESS_NOTICE_LIFETIME_MS = 60 * 1000;
 
 function safeOriginalName(value) {
   return path.basename(String(value || "iPhoneの写真"))
+    // eslint-disable-next-line no-control-regex -- ファイル名から制御文字を除去する意図的な指定。
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .slice(0, 120) || "iPhoneの写真";
 }
@@ -116,7 +117,7 @@ export class UploadService {
   /**
    * @param {unknown} uploadId 手動補完するアップロードID。
    * @param {unknown} isbn ISBN-10またはISBN-13。
-   * @returns {Promise<object>} ISBN登録結果。
+   * @returns {Promise<{book: import("../src/types.js").Book, upload: import("../src/types.js").UploadRecord, duplicate: boolean}>} ISBN登録結果。
    */
   async completeWithIsbn(uploadId, isbn) {
     const upload = await this.#findUpload(uploadId);
@@ -125,7 +126,7 @@ export class UploadService {
 
   /**
    * @param {unknown} uploadId 再解析するアップロードID。
-   * @returns {Promise<object>} ISBN登録結果。
+   * @returns {Promise<{book: import("../src/types.js").Book, upload: import("../src/types.js").UploadRecord, duplicate: boolean}>} ISBN登録結果。
    */
   async retryBarcode(uploadId) {
     const upload = await this.#findUpload(uploadId);

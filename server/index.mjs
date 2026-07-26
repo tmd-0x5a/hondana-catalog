@@ -7,6 +7,7 @@ import { createApp } from "./app.mjs";
 import { BarcodeScanner } from "./barcode-scanner.mjs";
 import { BookMetadataService } from "./book-metadata-service.mjs";
 import { BookBulkImportService } from "./book-bulk-import-service.mjs";
+import { BookPackService } from "./book-pack-service.mjs";
 import { BookScreenshotImportService } from "./book-screenshot-import-service.mjs";
 import { BookService } from "./book-service.mjs";
 import { CoverService } from "./cover-service.mjs";
@@ -14,7 +15,6 @@ import { HttpClient } from "./http-client.mjs";
 import { LibraryRepository } from "./library-repository.mjs";
 import { NdlCatalogService } from "./ndl-catalog-service.mjs";
 import { privateLanAddress } from "./network.mjs";
-import { RecommendationService } from "./recommendation-service.mjs";
 import { createBookRouter } from "./routes/book-router.mjs";
 import { createBulkImportRouter } from "./routes/bulk-import-router.mjs";
 import { createRecommendationRouter } from "./routes/recommendation-router.mjs";
@@ -51,7 +51,7 @@ const screenshotImportService = new BookScreenshotImportService({
   catalogService,
 });
 const seriesService = new SeriesService({ repository, catalogService });
-const recommendationService = new RecommendationService({ repository, catalogService });
+const packService = new BookPackService({ repository, catalogService, metadataService });
 const uploadService = new UploadService({
   repository,
   bookService,
@@ -75,7 +75,7 @@ const routers = [
     screenshotRateLimit: screenshotRateLimiter.middleware(),
   }),
   createBookRouter({ bookService, catalogService, metadataService }),
-  createRecommendationRouter({ recommendationService }),
+  createRecommendationRouter({ packService }),
   createSeriesRouter({ seriesService }),
   createUploadRouter({ uploadService, uploadRateLimit: uploadRateLimiter.middleware() }),
 ];
@@ -105,6 +105,10 @@ const server = app.listen(port, "0.0.0.0", () => {
   console.log(`iPhoneアップロード: ${lanUrl}/upload`);
   void bookService.backfillMetadataGaps().catch((error) => {
     console.error("表紙・読みの自動補完に失敗しました。", error);
+  });
+  // 画面を開いたときには出来上がっているよう、今日のパックを起動直後から用意しておく。
+  void packService.prepareTodaysPack().catch((error) => {
+    console.error("本のパックの準備に失敗しました。", error);
   });
 });
 

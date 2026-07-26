@@ -19,6 +19,8 @@ data/
   uploads.json.bak    直前の正常な履歴
   uploads/            iPhoneから受信した写真
   covers/             ISBN名のWebP表紙キャッシュ
+  backups/            起動日ごとの蔵書スナップショット（books-YYYY-MM-DD.json、最新7世代）
+  daily-pack.json     その日のおすすめカードパック
 ```
 
 ## 3. 論理モデル
@@ -80,6 +82,7 @@ erDiagram
 | reminderNote | string | 任意 | 最大500文字 |
 | coverUrl | string | 任意 | 原則`/covers/{isbn}.webp` |
 | uploadedImageUrl | string | 任意 | `/uploads/{server-generated-name}` |
+| metadataCheckedAt | string | 任意 | 表紙・読み補完の最終試行日時。3日間隔の再試行判定に使う |
 | sortOrder | number | 必須 | 手動順の昇順キー |
 | createdAt / updatedAt | string | 必須 | ISO 8601 |
 | series* / nextVolume* | scalar | 任意 | 最終確認日時、最新巻、次巻のスナップショット |
@@ -99,6 +102,18 @@ erDiagram
 
 履歴は最大100件をJSONへ保持する。成功通知は完了後60秒まで表示する。
 
+## 5A. DAILY_PACK項目
+
+その日のおすすめカードパックを1件だけ保持する。蔵書ではなく表示用の一時データとして扱う。
+
+| 項目 | 型 | 必須 | 制約・用途 |
+| --- | --- | --- | --- |
+| date | string | 必須 | ローカル日付のYYYY-MM-DD。日付が変わると作り直す |
+| cards | object[] | 必須 | 最大5件。`isbn`、`title`、`author`、`publisher`、`published`、`coverUrl`、`description`、`url`、`genre`、`rare`、`reason` |
+| openedAt | string/null | 必須 | 開封日時のISO 8601。未開封はnull |
+
+同じ日の再表示では外部APIを呼ばず、このファイルの内容をそのまま返す。BOOKレコードとは独立しており、削除しても蔵書に影響しない。
+
 ## 6. 整合性・移行・復旧
 
 - `applyBookDefaults`が古いレコードへ既定値を追加し、カテゴリ・媒体表記を正規化する。
@@ -106,7 +121,8 @@ erDiagram
 - JSONの読込・変更・保存は`updateBooks` / `updateUploads`の更新トランザクションとしてファイル単位で直列化し、PC編集とiPhone登録の同時更新を失わない。
 - 完成した一時ファイルだけを主ファイルへ置換する。
 - 置換前に主ファイルが正常JSONなら`.bak`へコピーする。主ファイル破損時は`.bak`を読む。
-- `.bak`は一世代だけであり、利用者による`data/`フォルダーの外部バックアップを代替しない。
+- `.bak`は一世代だけの破損対策であり、誤操作対策として起動日ごとの蔵書スナップショットを`backups/`へ最新7世代保持する。
+- `GET /api/export/books`で蔵書全件をJSONとしてダウンロードできる。いずれも利用者による`data/`フォルダーの外部バックアップを代替しない。
 - 単一プロセス前提。将来RDBMSへ移行する場合も、サービスから見える保存契約は`LibraryRepository`で維持する。
 
 本の大きさ、棚見出し、シリーズ集約は端末固有の表示設定としてlocalStorageへ保存し、BOOKレコードには含めない。

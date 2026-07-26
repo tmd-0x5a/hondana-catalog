@@ -4,6 +4,7 @@ release/
 data/
 qa/
 .npm-cache/
+.claude/
 
 build/*
 !build/icon.png

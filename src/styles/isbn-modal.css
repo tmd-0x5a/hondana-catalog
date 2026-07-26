@@ -1,0 +1,106 @@
+/* モーダル背景とISBN入力モーダル */
+.modal-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 6, 5, 0.76);
+  backdrop-filter: blur(8px);
+}
+
+.isbn-modal {
+  width: min(440px, 100%);
+  padding: 22px;
+  border: 1px solid rgba(226, 204, 150, 0.3);
+  border-radius: 8px;
+  background: #171b17;
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.62);
+}
+
+.isbn-modal header,
+.isbn-modal header > div,
+.isbn-modal footer {
+  display: flex;
+  align-items: center;
+}
+
+.isbn-modal header { justify-content: space-between; }
+
+.isbn-modal header > div {
+  gap: 10px;
+  color: #dcc482;
+}
+
+.isbn-modal header > div strong { font-size: 18px; }
+
+.isbn-modal header > button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.isbn-modal > p {
+  margin: 18px 0;
+  color: #aaa08d;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.isbn-modal label,
+.isbn-modal label > span { display: grid; }
+
+.isbn-modal label > span {
+  margin-bottom: 7px;
+  color: #a99d88;
+  font-size: 12px;
+}
+
+.isbn-modal input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  outline: 0;
+  background: #0f120f;
+  color: #efe7d5;
+}
+
+.isbn-modal input:focus {
+  border-color: #6c9a66;
+  box-shadow: 0 0 0 3px rgba(76, 118, 75, 0.24);
+}
+
+.modal-message {
+  margin-top: 12px;
+  color: #d9b56b;
+  font-size: 12px;
+}
+
+.isbn-modal footer {
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.isbn-modal footer button {
+  min-height: 40px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.isbn-modal footer .modal-submit {
+  border-color: rgba(120, 173, 116, 0.5);
+  background: #426b44;
+}

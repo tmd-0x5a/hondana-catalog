@@ -52,6 +52,17 @@ export function createSystemRouter({ bookService, port, getLanAddress, accessTok
     });
   }));
 
+  router.get("/api/export/books", asyncRoute(async (_request, response) => {
+    const books = await bookService.listBooks();
+    const exportedAt = new Date().toISOString();
+    response.set({
+      "content-type": "application/json; charset=utf-8",
+      "content-disposition": `attachment; filename="hondana-books-${exportedAt.slice(0, 10)}.json"`,
+      "cache-control": "no-store",
+    });
+    response.send(JSON.stringify({ exportedAt, count: books.length, books }, null, 2));
+  }));
+
   router.get("/api/offline-library", asyncRoute(async (_request, response) => {
     const books = await bookService.listBooks();
     const snapshot = { syncedAt: new Date().toISOString(), books: books.map(pocketBook) };

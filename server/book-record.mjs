@@ -50,8 +50,8 @@ export function createManualBookRecord(input, { id, sortOrder, timestamp }) {
     rating: Number(input.rating) || 0,
     note: String(input.note || ""),
     category: String(input.category || "その他"),
-    bookType: input.bookType,
-    format: input.format,
+    bookType: /** @type {import("../src/types.js").Book["bookType"]} */ (input.bookType),
+    format: /** @type {import("../src/types.js").Book["format"]} */ (input.format),
     physicalLocation: String(input.physicalLocation || ""),
     electronicPlatform: String(input.electronicPlatform || ""),
     electronicUrl: String(input.electronicUrl || ""),
@@ -95,7 +95,7 @@ export function updateBookRecord(book, changes, { index, timestamp }) {
  * @param {import("../src/types.js").Book|null} values.existingBook 同一ISBNの既存蔵書。
  * @param {import("../src/types.js").BookMetadata} values.metadata 外部書誌。
  * @param {string} values.isbn 正規化済みISBN-13。
- * @param {string} values.id 保存ID。
+ * @param {string|number} values.id 保存ID。旧データ互換で数値も許容する。
  * @param {number} values.sortOrder 手動並び順。
  * @param {import("../src/types.js").UploadRecord|null} values.uploadRecord 元画像記録。
  * @param {string} values.timestamp 更新日時。
@@ -110,10 +110,12 @@ export function mergeImportedBookRecord({
   uploadRecord,
   timestamp,
 }) {
+  // descriptionはnoteへ反映済みの表示用フィールドなので、蔵書レコードへは重複保存しない。
+  const { description: _description, ...storableMetadata } = metadata;
   return applyBookDefaults({
     ...(existingBook || {}),
     id,
-    ...metadata,
+    ...storableMetadata,
     isbn,
     titleReading: existingBook?.titleReading || metadata.titleReading || "",
     authorReading: existingBook?.authorReading || metadata.authorReading || "",

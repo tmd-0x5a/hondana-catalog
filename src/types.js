@@ -30,6 +30,22 @@
  * @property {number} sortOrder 手動並び順。
  * @property {string} createdAt ISO 8601形式の登録日時。
  * @property {string} updatedAt ISO 8601形式の更新日時。
+ * @property {string} [coverSource] 表紙画像の取得元表示。
+ * @property {string} [metadataSource] 書誌情報の取得元表示。
+ * @property {string} [metadataCheckedAt] 表紙・読み補完を最後に試行したISO 8601日時。再試行間隔の判定に使う。
+ * @property {string} [uploadedImageUrl] ISBN読み取りに使った元画像のアプリ内URL。
+ * @property {string} [seriesCheckedAt] シリーズ刊行確認のISO 8601日時。
+ * @property {number|null} [seriesLatestVolume] 確認済みの最新巻数。
+ * @property {string} [seriesLatestIsbn] 最新巻のISBN-13。
+ * @property {string} [seriesLatestPublished] 最新巻の刊行日表示。
+ * @property {string} [seriesLatestTitle] 最新巻の書名。
+ * @property {string} [seriesLatestUrl] 最新巻のNDL書誌ページURL。
+ * @property {number|null} [nextVolumeNumber] 次に未所持の巻数。
+ * @property {string} [nextVolumeIsbn] 次巻のISBN-13。
+ * @property {string} [nextVolumePublished] 次巻の刊行日表示。
+ * @property {string} [nextVolumeTitle] 次巻の書名。
+ * @property {string} [nextVolumeUrl] 次巻のNDL書誌ページURL。
+ * @property {string|null} [sprite] 旧UI互換のために保存している未使用フィールド。
  */
 
 /**
@@ -51,8 +67,9 @@
 
 /**
  * 外部書誌APIをアプリ共通形式へ統合した結果。
+ * descriptionは紹介文の表示専用で、蔵書レコードへは保存しない（noteへ反映済み）。
  *
- * @typedef {Partial<Book> & {metadataSource: string, tags: string[]}} BookMetadata
+ * @typedef {Partial<Book> & {metadataSource: string, tags: string[], description?: string}} BookMetadata
  */
 
 /**
@@ -64,6 +81,25 @@
  * @property {string} isbn ISBN-13。
  * @property {string} published 刊行日表示。
  * @property {string} url NDL書誌ページURL。
+ */
+
+/**
+ * 巻ごとの蔵書をシリーズ単位へ集約した新刊リスト用データ。
+ *
+ * @typedef {object} SeriesGroup
+ * @property {string} key シリーズ比較キー。
+ * @property {string} seriesName シリーズ名。
+ * @property {Book[]} books シリーズ内の所持巻。
+ * @property {Book} representative 新刊情報を持つ代表巻。
+ * @property {string} coverUrl 代表巻の表紙URL。
+ * @property {number} ownedMax 所持している最大巻数。
+ * @property {number|null} latestVolume 確認済みの最新巻数。
+ * @property {number|null} nextVolumeNumber 次に未所持の巻数。
+ * @property {string} nextVolumeIsbn 次巻のISBN-13。
+ * @property {string} nextVolumePublished 次巻の刊行日表示。
+ * @property {string} nextVolumeTitle 次巻の書名。
+ * @property {string} nextVolumeUrl 次巻のNDL書誌ページURL。
+ * @property {string} ownershipLabel 所有形態・媒体の表示ラベル。
  */
 
 /**

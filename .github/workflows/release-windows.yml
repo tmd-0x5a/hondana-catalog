@@ -25,8 +25,25 @@ jobs:
       - name: Install exact dependencies
         run: npm ci
 
-      - name: Test and build Windows portable app
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build Windows portable app
         run: npm run dist:win
+
+      - name: Verify tag matches package version
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          if ("${{ github.ref_name }}" -ne "v$version") {
+            throw "Tag ${{ github.ref_name }} does not match package version v$version."
+          }
 
       - name: Create release and upload checksummed executable
         shell: pwsh

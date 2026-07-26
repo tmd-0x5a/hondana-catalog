@@ -45,7 +45,30 @@ try {
       throw "Windows OCR language is not installed."
     }
     $result = Wait-WinRtOperation ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
-    $lines = @($result.Lines | ForEach-Object { [string]$_.Text })
+    $lines = @($result.Lines | ForEach-Object {
+      $words = @($_.Words)
+      if ($words.Count -eq 0) { return }
+
+      $left = [double]::PositiveInfinity
+      $top = [double]::PositiveInfinity
+      $right = 0.0
+      $bottom = 0.0
+      foreach ($word in $words) {
+        $rect = $word.BoundingRect
+        $left = [Math]::Min($left, [double]$rect.X)
+        $top = [Math]::Min($top, [double]$rect.Y)
+        $right = [Math]::Max($right, [double]$rect.X + [double]$rect.Width)
+        $bottom = [Math]::Max($bottom, [double]$rect.Y + [double]$rect.Height)
+      }
+
+      [PSCustomObject]@{
+        text = [string]$_.Text
+        x = [Math]::Round($left, 2)
+        y = [Math]::Round($top, 2)
+        width = [Math]::Round($right - $left, 2)
+        height = [Math]::Round($bottom - $top, 2)
+      }
+    })
     [Console]::Out.Write((ConvertTo-Json -InputObject $lines -Compress))
   }
   finally {

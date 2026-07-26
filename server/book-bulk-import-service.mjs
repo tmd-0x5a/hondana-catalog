@@ -50,6 +50,9 @@ export class BookBulkImportService {
       }
     }
 
+    // 取り込み中に表紙を取得できなかった本を応答後に補完する。失敗しても取り込み結果には影響させない。
+    void this.bookService.backfillMetadataGaps?.({ maxBooks: validated.entries.length })?.catch(() => {});
+
     return {
       books,
       processedCount: books.length,

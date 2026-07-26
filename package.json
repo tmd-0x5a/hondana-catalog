@@ -1,6 +1,6 @@
 {
   "name": "bookshelf-prototype",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Windows PCとiPhoneのLAN連携で使う個人向け蔵書管理アプリ",
   "author": "tmd-0x5a",
   "license": "MIT",
@@ -13,7 +13,10 @@
   },
   "scripts": {
     "test": "node --test test/all.test.mjs",
-    "check": "npm test && npm run build",
+    "lint": "eslint .",
+    "typecheck": "tsc -p jsconfig.json",
+    "format": "prettier --write .",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build",
     "security:audit": "npm audit",
     "dev": "vite",
     "server": "node server/index.mjs",
@@ -27,7 +30,7 @@
     "@zxing/browser": "^0.2.0",
     "@zxing/library": "^0.22.0",
     "express": "^5.2.1",
-    "fast-xml-parser": "^5.10.0",
+    "fast-xml-parser": "^5.10.1",
     "lucide-react": "^1.24.0",
     "multer": "^2.2.0",
     "qrcode": "^1.5.4",
@@ -36,9 +39,20 @@
     "sharp": "^0.35.3"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/express": "5.0.6",
+    "@types/multer": "2.2.0",
+    "@types/node": "26.1.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.0.4",
     "electron": "43.1.1",
     "electron-builder": "26.11.1",
+    "eslint": "10.8.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.7.0",
+    "prettier": "3.9.5",
+    "typescript": "7.0.2",
     "vite": "6.4.3"
   },
   "build": {

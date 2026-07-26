@@ -102,10 +102,28 @@ export function initialSectionLabel(value) {
   return "その他";
 }
 
-/** 読みを取得できた項目を先に並べ、未取得項目を棚の末尾へまとめる。 */
+/**
+ * 並び替えに使う読みのキーを返す。
+ * 読みがなくても、かな・英数字で始まるタイトルはそのまま並べられるため先頭グループに含める。
+ * 読みを推測できないのは漢字始まりだけで、それらは棚の末尾グループへまとめる。
+ */
 function readingSortValue(reading, fallback) {
-  const value = reading || fallback || "";
-  return `${reading ? "0" : "1"}:${value}`;
+  if (reading) return `0:${reading}`;
+  const value = String(fallback || "").trim();
+  const sortableWithoutReading = value && !/^[\s\p{P}\p{S}]*\p{Script=Han}/u.test(value);
+  return sortableWithoutReading ? `0:${value}` : `1:${value}`;
+}
+
+/** 読みが同一のシリーズ巻を巻数の昇順で安定させる。 */
+function compareVolumeNumbers(left, right) {
+  return (Number(left.volumeNumber) || 0) - (Number(right.volumeNumber) || 0);
+}
+
+function compareTitleReadings(left, right) {
+  return collator.compare(
+    readingSortValue(left.titleReading, left.title),
+    readingSortValue(right.titleReading, right.title),
+  ) || compareVolumeNumbers(left, right) || collator.compare(left.title, right.title);
 }
 
 /**
@@ -272,11 +290,11 @@ export function filterAndSortBooks(books, filters) {
   });
 
   const sorted = [...filtered];
-  if (sortMode === "title") sorted.sort((a, b) => collator.compare(readingSortValue(a.titleReading, a.title), readingSortValue(b.titleReading, b.title)));
-  else if (sortMode === "author") sorted.sort((a, b) => collator.compare(readingSortValue(a.authorReading, a.author), readingSortValue(b.authorReading, b.author)));
-  else if (sortMode === "publisher") sorted.sort((a, b) => collator.compare(a.publisher || "出版社不明", b.publisher || "出版社不明"));
+  if (sortMode === "title") sorted.sort(compareTitleReadings);
+  else if (sortMode === "author") sorted.sort((a, b) => collator.compare(readingSortValue(a.authorReading, a.author), readingSortValue(b.authorReading, b.author)) || compareTitleReadings(a, b));
+  else if (sortMode === "publisher") sorted.sort((a, b) => collator.compare(a.publisher || "出版社不明", b.publisher || "出版社不明") || compareTitleReadings(a, b));
   else if (sortMode === "series") sorted.sort((a, b) => collator.compare(`${a.seriesName || a.title} ${String(a.volumeNumber || 0).padStart(4, "0")}`, `${b.seriesName || b.title} ${String(b.volumeNumber || 0).padStart(4, "0")}`));
-  else if (sortMode === "location") sorted.sort((a, b) => collator.compare(locationLabel(a), locationLabel(b)));
+  else if (sortMode === "location") sorted.sort((a, b) => collator.compare(locationLabel(a), locationLabel(b)) || compareTitleReadings(a, b));
   else if (sortMode === "manual") sorted.sort((a, b) => Number(a.sortOrder) - Number(b.sortOrder));
   else sorted.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   return sorted;

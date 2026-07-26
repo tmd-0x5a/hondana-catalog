@@ -20,11 +20,21 @@ function firstSortOrder(books) {
   return books.length ? Math.min(...books.map((book) => Number(book.sortOrder) || 0)) : 0;
 }
 
-/** ローカル表紙または書名・著者の読みが不足するISBN書誌だけを補完対象にする。 */
-function needsMetadataBackfill(book) {
-  if (!book.metadataSource || !book.isbn) return false;
+/** 補完failed本を再試行するまでの間隔。起動ごとの外部API呼び出しを抑える。 */
+const METADATA_RETRY_INTERVAL_MS = 3 * 24 * 60 * 60 * 1000;
+/** 一度の起動で補完を試みる最大冊数。 */
+const MAX_BACKFILL_BOOKS_PER_RUN = 15;
+
+/**
+ * ローカル表紙または書名・著者の読みが不足するISBN蔵書だけを補完対象にする。
+ * 直近に確認済みの本は、外部APIに情報がない可能性が高いため再試行間隔まで除外する。
+ */
+function needsMetadataBackfill(book, nowMs) {
+  if (!book.isbn) return false;
   const hasLocalCover = book.coverUrl?.startsWith("/covers/");
-  return !hasLocalCover || !book.titleReading || !book.authorReading;
+  if (hasLocalCover && book.titleReading && book.authorReading) return false;
+  const lastCheckedMs = Date.parse(book.metadataCheckedAt || "");
+  return !Number.isFinite(lastCheckedMs) || nowMs - lastCheckedMs >= METADATA_RETRY_INTERVAL_MS;
 }
 
 /** 既存の利用者入力を上書きせず、外部書誌から埋められる不足項目だけを返す。 */
@@ -186,14 +196,23 @@ export class BookService {
   /**
    * ISBN登録済み蔵書のローカル表紙と読みを補完する。各冊の失敗は分離する。
    * 漢字から読みを推測せず、外部書誌が返した読みだけを保存する。
+   * 試行した本には成否にかかわらず確認日時を記録し、次回以降の外部API呼び出しを再試行間隔まで抑える。
    *
+   * @param {object} [options] 実行条件。
+   * @param {number} [options.maxBooks] 今回の実行で試みる最大冊数。一括取り込み直後は取り込み件数まで広げる。
    * @returns {Promise<void>}
    */
-  async backfillMetadataGaps() {
+  async backfillMetadataGaps({ maxBooks = MAX_BACKFILL_BOOKS_PER_RUN } = {}) {
     const books = await this.repository.readBooks();
+    const nowMs = Date.parse(this.now());
+    const targets = books
+      .filter((book) => needsMetadataBackfill(book, nowMs))
+      .slice(0, maxBooks);
+    if (!targets.length) return;
+
     const updates = new Map();
-    for (const book of books) {
-      if (!needsMetadataBackfill(book)) continue;
+    for (const book of targets) {
+      const changes = { metadataCheckedAt: this.now() };
       try {
         const isbn = normalizeIsbn(book.isbn);
         const metadata = await this.metadataService.findByIsbn(isbn);
@@ -202,17 +221,18 @@ export class BookService {
           const preferredUrls = book.coverUrl?.startsWith("http") ? [book.coverUrl] : [];
           coverUrl = await this.coverService.ensureCachedCover(isbn, preferredUrls);
         }
-        const changes = createMetadataBackfill(book, metadata, coverUrl);
-        if (Object.keys(changes).length) updates.set(String(book.id), changes);
+        Object.assign(changes, createMetadataBackfill(book, metadata, coverUrl));
       } catch {
-        // 一冊のISBNや外部応答が不正でも、残りの書誌補完を続行する。
+        // 不正ISBNや外部エラーでも確認日時だけは記録し、残りの書誌補完を続行する。
       }
+      updates.set(String(book.id), changes);
     }
-    if (!updates.size) return;
+
     await this.repository.updateBooks((latestBooks) => {
       for (const book of latestBooks) {
         const changes = updates.get(String(book.id));
         if (!changes) continue;
+        book.metadataCheckedAt = changes.metadataCheckedAt;
         let bookChanged = false;
         if (changes.coverUrl && !book.coverUrl?.startsWith("/covers/")) {
           book.coverUrl = changes.coverUrl;

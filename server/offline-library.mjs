@@ -2,7 +2,7 @@
  * 店頭へ持ち出せる自己完結HTMLを生成する。
  * JSONをscript要素へ埋め込むため、タグ終端やJavaScriptの行区切りとして解釈される文字を先に逃がす。
  *
- * @param {{syncedAt: string, books: import("../src/types.js").Book[]}} snapshot 持ち出し対象の最小蔵書スナップショット。
+ * @param {{syncedAt: string, books: Array<Record<string, unknown>>}} snapshot 持ち出し対象の最小蔵書スナップショット。
  * @returns {string} 外部依存を持たないUTF-8 HTML文書。
  */
 export function buildOfflineLibraryHtml(snapshot) {

@@ -1,0 +1,197 @@
+/* 新刊・未所持リスト */
+.new-release-view {
+  min-height: 0;
+  margin: 0 24px 22px;
+  padding: 24px;
+  overflow-y: auto;
+  border: 1px solid rgba(226, 204, 150, 0.18);
+  background: rgba(12, 15, 13, 0.66);
+  box-shadow: var(--shadow);
+  scrollbar-color: rgba(205, 168, 94, 0.34) transparent;
+  scrollbar-width: thin;
+}
+
+.release-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.release-header span {
+  color: #9bb394;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.release-header h2 {
+  margin: 4px 0 0;
+  font-size: 22px;
+}
+
+.release-header p {
+  margin: 7px 0 0;
+  color: #9f9585;
+  font-size: 12px;
+}
+
+.release-header button,
+.release-actions button,
+.release-actions a {
+  min-height: 38px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #d8cebb;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.release-header button {
+  flex: 0 0 auto;
+  border-color: rgba(120, 173, 116, 0.48);
+  background: #3f6742;
+  color: #f2ecdc;
+}
+
+.release-message {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(126, 169, 111, 0.34);
+  border-radius: 6px;
+  background: rgba(68, 104, 63, 0.2);
+  color: #bdd0b6;
+  font-size: 12px;
+}
+
+.release-list {
+  display: grid;
+}
+
+.release-row {
+  min-width: 0;
+  min-height: 150px;
+  padding: 18px 4px;
+  display: grid;
+  grid-template-columns: 76px minmax(220px, 1fr) 118px 132px;
+  gap: 18px;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.release-row > img {
+  width: 76px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
+}
+
+.release-main {
+  min-width: 0;
+}
+
+.release-kind {
+  color: #9ab592;
+  font-size: 10px;
+}
+
+.release-main h3 {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 18px;
+}
+
+.release-main > p {
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: #b9af9d;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.release-facts {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.release-facts span {
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: #928979;
+  font-size: 9px;
+}
+
+.release-volume {
+  min-width: 0;
+  padding-left: 18px;
+  border-left: 1px solid var(--line);
+}
+
+.release-volume > span,
+.release-volume time {
+  display: block;
+  color: #8f8575;
+  font-size: 10px;
+}
+
+.release-volume strong {
+  display: block;
+  margin: 3px 0;
+  color: #e2c06e;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.release-volume strong small {
+  margin-left: 3px;
+  font-size: 12px;
+}
+
+.release-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.release-actions a {
+  min-height: 32px;
+  color: #aaa08f;
+  font-size: 11px;
+}
+
+.release-actions button {
+  border-color: rgba(120, 173, 116, 0.5);
+  background: rgba(63, 103, 66, 0.8);
+  color: #f2ecdc;
+  font-size: 11px;
+}
+
+.release-empty {
+  min-height: 260px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  color: #777063;
+  text-align: center;
+}
+
+.release-empty strong {
+  color: #c6bcaa;
+  font-size: 15px;
+}
+
+.release-empty span {
+  font-size: 11px;
+}

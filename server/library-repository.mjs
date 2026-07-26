@@ -56,31 +56,63 @@ async function writeJsonAtomically(file, value) {
   }
 }
 
+const MAX_BACKUP_GENERATIONS = 7;
+const BACKUP_FILE_PATTERN = /^books-\d{4}-\d{2}-\d{2}\.json$/;
+
 /** 蔵書とアップロード履歴のファイル名、初期値、JSON変換を隠す永続化境界。 */
 export class LibraryRepository {
   /**
    * @param {object} options 保存設定。
    * @param {string} options.dataDir 書込可能なデータディレクトリ。
-   * @param {import("../src/types.js").Book[]} options.seedBooks 初回作成時の蔵書。
+   * @param {Partial<import("../src/types.js").Book>[]} options.seedBooks 初回作成時の蔵書。起動時にmigrateStoredBooksが現行形式へ補完する。
+   * @param {() => Date} [options.now] 日次バックアップの基準日。テスト差し替え用。
    */
-  constructor({ dataDir, seedBooks }) {
+  constructor({ dataDir, seedBooks, now = () => new Date() }) {
     this.seedBooks = seedBooks;
+    this.now = now;
     this.writeQueues = new Map();
     this.paths = {
       dataDir,
       uploadDir: path.join(dataDir, "uploads"),
       coverDir: path.join(dataDir, "covers"),
+      backupDir: path.join(dataDir, "backups"),
       booksFile: path.join(dataDir, "books.json"),
       uploadsFile: path.join(dataDir, "uploads.json"),
+      packFile: path.join(dataDir, "daily-pack.json"),
     };
   }
 
-  /** @returns {Promise<void>} 必要なディレクトリと初期JSONを作成する。 */
+  /** @returns {Promise<void>} 必要なディレクトリと初期JSONを作成し、日次バックアップを更新する。 */
   async initialize() {
     await fsp.mkdir(this.paths.uploadDir, { recursive: true });
     await fsp.mkdir(this.paths.coverDir, { recursive: true });
+    await fsp.mkdir(this.paths.backupDir, { recursive: true });
     if (!fs.existsSync(this.paths.booksFile)) await writeJsonAtomically(this.paths.booksFile, this.seedBooks);
     if (!fs.existsSync(this.paths.uploadsFile)) await writeJsonAtomically(this.paths.uploadsFile, []);
+    await this.#createDailyBackup();
+  }
+
+  /**
+   * 起動日ごとに一度だけbooks.jsonのスナップショットを残し、直近の世代だけを保持する。
+   * 直前一世代の.bakが守れない、数日前からの誤操作・データ破損からの復旧手段になる。
+   */
+  async #createDailyBackup() {
+    const date = this.now();
+    const stamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const backupFile = path.join(this.paths.backupDir, `books-${stamp}.json`);
+    if (!fs.existsSync(backupFile)) {
+      try {
+        await fsp.copyFile(this.paths.booksFile, backupFile);
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+    }
+    const backups = (await fsp.readdir(this.paths.backupDir))
+      .filter((name) => BACKUP_FILE_PATTERN.test(name))
+      .sort();
+    for (const expired of backups.slice(0, -MAX_BACKUP_GENERATIONS)) {
+      await fsp.rm(path.join(this.paths.backupDir, expired), { force: true });
+    }
   }
 
   /** @returns {Promise<import("../src/types.js").Book[]>} 蔵書スナップショット。破損時は正常な.bakを読む。 */
@@ -134,6 +166,16 @@ export class LibraryRepository {
       await writeJsonAtomically(this.paths.uploadsFile, uploads);
       return result;
     });
+  }
+
+  /** @returns {Promise<{date: string, cards: object[], openedAt: string|null}|null>} 保存済みの日次パック。 */
+  readPack() {
+    return readJson(this.paths.packFile, null);
+  }
+
+  /** @param {{date: string, cards: object[], openedAt: string|null}} pack 日次パック。 @returns {Promise<void>} 原子的な保存完了。 */
+  savePack(pack) {
+    return this.#queueWrite("pack", () => writeJsonAtomically(this.paths.packFile, pack));
   }
 
   #queueWrite(key, writeOperation) {

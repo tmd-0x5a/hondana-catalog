@@ -22,6 +22,20 @@ function firstValue(value) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+/**
+ * openBDのONIXから内容紹介を取り出す。
+ * TextType 03（長い紹介）を優先し、なければ02（短い内容紹介）を使う。
+ *
+ * @param {Record<string, any>} record openBDの1件分レコード。
+ * @returns {string} 最大5000文字の紹介文。取得できない場合は空文字。
+ */
+function openBdDescription(record) {
+  const contents = record?.onix?.CollateralDetail?.TextContent;
+  const texts = Array.isArray(contents) ? contents : [contents].filter(Boolean);
+  const byType = (type) => texts.find((entry) => String(entry?.TextType || "") === type)?.Text;
+  return limitedText(byType("03") || byType("02") || "", 5000);
+}
+
 /** openBDのONIX照合キーから、書名と著者の読みを安全に取り出す。 */
 function openBdReadings(record) {
   const detail = record?.onix?.DescriptiveDetail;
@@ -74,13 +88,43 @@ export class BookMetadataService {
       coverUrl: cachedCoverUrl,
       coverSource: cachedCoverUrl ? "openBD・Google Books・Open Library等" : "",
       category: openBd?.category || google?.category || "その他",
-      bookType: openBd?.bookType || google?.bookType || "book",
+      bookType: /** @type {import("../src/types.js").Book["bookType"]} */ (openBd?.bookType || google?.bookType || "book"),
       seriesName: openBd?.seriesName || google?.seriesName || "",
       volumeNumber: openBd?.volumeNumber || google?.volumeNumber || null,
       tags: google?.tags || [],
-      note: google?.note || this.#fallbackNote(sources),
+      // 日本語書籍はopenBDの内容紹介が確実で、Google Booksは日次クォータで失敗し得るため先に使う。
+      description: openBd?.description || google?.note || "",
+      note: openBd?.description || google?.note || this.#fallbackNote(sources),
       metadataSource: sources.join(" + ") || "ISBNのみ",
     };
+  }
+
+  /**
+   * 複数ISBNの内容紹介をopenBDへ1回で問い合わせる。
+   * 候補の中から紹介文を持つ本を優先したい場面で、1冊ずつ照会せずに済ませるために使う。
+   *
+   * @param {string[]} isbns 正規化済みISBN-13。最多50件。
+   * @returns {Promise<Map<string, string>>} 紹介文を取得できたISBNだけのMap。
+   */
+  async findDescriptionsByIsbns(isbns) {
+    const targets = [...new Set(isbns.filter(Boolean))].slice(0, 50);
+    const descriptions = new Map();
+    if (!targets.length) return descriptions;
+
+    try {
+      const data = await this.httpClient.getJson(
+        `https://api.openbd.jp/v1/get?isbn=${encodeURIComponent(targets.join(","))}`,
+        { errorLabel: "openBD一括照会", maxBytes: 8 * 1024 * 1024 },
+      );
+      const records = Array.isArray(data) ? data : [];
+      records.forEach((record, index) => {
+        const description = openBdDescription(record);
+        if (description) descriptions.set(targets[index], description);
+      });
+    } catch {
+      // 紹介文の事前確認は任意処理なので、失敗しても候補選定を続行する。
+    }
+    return descriptions;
   }
 
   #fallbackNote(sources) {
@@ -104,6 +148,7 @@ export class BookMetadataService {
       publisher: limitedText(summary.publisher, 200),
       published: limitedText(formatOpenBdDate(summary.pubdate || ""), 50),
       coverUrl: secureImageUrl(summary.cover || ""),
+      description: openBdDescription(record),
       ...inferBookClassification({
         title: limitedText(summary.title, 300),
         series: limitedText(summary.series, 300),
