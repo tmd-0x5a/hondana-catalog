@@ -43,7 +43,7 @@ function createService({ repository, catalogService, metadataService, random = (
     catalogService,
     metadataService,
     random,
-    now: () => new Date("2026-07-20T09:00:00"),
+    now: () => new Date("2026-07-20T12:00:00.000Z"),
     pause: async () => {},
   });
 }
@@ -354,7 +354,7 @@ test("開封すると開封日時を記録し、二度目は同じ日時を保�
   });
 
   const opened = await service.openTodaysPack();
-  assert.equal(opened.openedAt, "2026-07-20T00:00:00.000Z");
+  assert.equal(opened.openedAt, "2026-07-20T12:00:00.000Z");
 
   const reopened = await service.openTodaysPack();
   assert.equal(reopened.openedAt, opened.openedAt);
