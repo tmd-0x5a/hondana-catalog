@@ -158,6 +158,7 @@ ISBNや検索語を使い、次の外部サービスから取得できた情報�
 - [画面仕様書・画面遷移図](docs/SCREEN-SPEC.md)
 - [DB設計書](docs/DATA-DESIGN.md)
 - [API仕様書](docs/API-SPEC.md)
+- [テスト仕様書](docs/TEST-SPEC.md)
 - [アーキテクチャ資料](docs/ARCHITECTURE.md)
 - [セキュリティ設計と残余リスク](docs/SECURITY.md)
 - [外部Skillの安全運用](docs/SKILL-SECURITY.md)

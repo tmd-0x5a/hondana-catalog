@@ -27,31 +27,42 @@ data/
 
 ```mermaid
 erDiagram
-  BOOK ||--o{ UPLOAD : "bookId"
+  BOOK ||--o{ UPLOAD : relates
+  BOOK ||--o| COVER : caches
+
   BOOK {
-    string_or_number id PK
-    string isbn UK_optional
+    string id PK
+    string isbn UK
     string title
     string category
     string format
     string seriesName
-    number volumeNumber
-    number sortOrder
+    float volumeNumber
+    int sortOrder
   }
+
   UPLOAD {
     string id PK
-    string bookId FK_optional
+    string bookId FK
     string storedFilename
     string status
     string createdAt
   }
+
   COVER {
     string isbn PK
     string path
     string format
   }
-  BOOK ||--o| COVER : "isbn"
+
+  DAILY_PACK {
+    string date PK
+    int cardCount
+    string openedAt
+  }
 ```
+
+ER図は関連と主要項目を示す簡略図である。`id`の旧数値互換、ISBN・外部キーの任意性、`number/null`などの正確な保存契約は、以下の項目表を正とする。
 
 ## 4. BOOK項目
 

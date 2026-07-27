@@ -100,4 +100,5 @@ flowchart LR
 - [画面仕様書・画面遷移図](SCREEN-SPEC.md)
 - [DB設計書](DATA-DESIGN.md)
 - [API仕様書](API-SPEC.md)
+- [テスト仕様書](TEST-SPEC.md)
 - [セキュリティ設計](SECURITY.md)
