@@ -28,15 +28,15 @@
     "dist:win": "npm run build && npm --prefix packaging ci && npm --prefix packaging run build:windows"
   },
   "dependencies": {
-    "@zxing/browser": "^0.2.0",
-    "@zxing/library": "^0.22.0",
+    "@zxing/browser": "^0.2.1",
+    "@zxing/library": "^0.23.0",
     "express": "^5.2.1",
     "fast-xml-parser": "^5.10.1",
-    "lucide-react": "^1.24.0",
+    "lucide-react": "^1.27.0",
     "multer": "^2.2.0",
     "qrcode": "^1.5.4",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "sharp": "^0.35.3"
   },
   "devDependencies": {
