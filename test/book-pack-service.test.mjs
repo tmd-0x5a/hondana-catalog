@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { BookPackService, drawGenres, drawRareGenre } from "../server/book-pack-service.mjs";
+import {
+  BookPackService,
+  drawGenres,
+  drawRareGenre,
+  drawRareSlot,
+} from "../server/book-pack-service.mjs";
 
 class MemoryRepository {
   constructor(books = [], pack = null) {
@@ -55,11 +60,13 @@ test("ジャンルは蔵書の冊数比率で抽選し、レア枠は未所蔵�
   // 蔵書にないジャンルだけがレア枠の候補になる。
   const rareGenre = drawRareGenre(ownedBooks, () => 0);
   assert.ok(!["技術", "マンガ"].includes(rareGenre));
+  assert.match(drawRareSlot(ownedBooks, () => 0).reason, /^未所蔵の/);
 
   // 全ジャンルを所蔵している場合は最も冊数の少ないジャンルを使う。
   const allGenres = ["マンガ", "小説", "技術", "ビジネス", "思想・社会", "実用", "その他"]
     .flatMap((category, index) => Array.from({ length: index === 3 ? 1 : 5 }, (_, n) => ({ id: `${category}-${n}`, category })));
   assert.equal(drawRareGenre(allGenres, () => 0), "ビジネス");
+  assert.equal(drawRareSlot(allGenres, () => 0).reason, "所蔵が少ないビジネス");
 });
 
 test("所蔵済みISBN・同名タイトル・パック内重複を候補から除外する", async () => {
@@ -214,6 +221,36 @@ test("候補の紹介文を一括照会し、紹介文のある本を優先し�
   assert.equal(card.description, "openBDの内容紹介");
 });
 
+test("書影のある候補を説明文の有無より先に選ぶ", async () => {
+  const repository = new MemoryRepository(ownedBooks);
+  const service = createService({
+    repository,
+    random: () => 0,
+    catalogService: {
+      async findBooksByPublisher() {
+        return [
+          { title: "説明文だけある本", isbn: "9784088837260", author: "著者A" },
+          { title: "表紙のある本", isbn: "9784098540174", author: "著者B" },
+        ];
+      },
+      async findBooksByCreator() { return []; },
+      async findBooksByKeyword() { return []; },
+    },
+    metadataService: {
+      async findPackCandidateDetails() {
+        return new Map([
+          ["9784088837260", { description: "紹介文", hasCover: false }],
+          ["9784098540174", { description: "", hasCover: true }],
+        ]);
+      },
+      async findByIsbn() { throw new Error("書誌なし"); },
+    },
+  });
+
+  const pack = await service.prepareTodaysPack();
+  assert.equal(pack.cards[0].title, "表紙のある本");
+});
+
 test("カードには選ばれた理由を持たせる", async () => {
   const repository = new MemoryRepository(ownedBooks);
   const service = createService({
@@ -232,7 +269,7 @@ test("カードには選ばれた理由を持たせる", async () => {
 
   // 枠のジャンルと実際の本のジャンルは一致しないことがあるため、理由を表示に使う。
   assert.match(normalCard.reason, /の本$/);
-  assert.match(rareCard.reason, /^未開拓の/);
+  assert.match(rareCard.reason, /^未所蔵の/);
 });
 
 test("同じ日の2回目は外部APIを呼ばず保存済みパックを返す", async () => {

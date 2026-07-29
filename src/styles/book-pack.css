@@ -1,6 +1,9 @@
 /* 日次カードパックの開封演出とカード表示。共通の見出し・空状態はviews.cssを使う。 */
-.pack-preparing,
-.pack-sealed {
+.book-pack-view {
+  background: #120e0b url("/assets/pack-desk.png") center / cover no-repeat;
+}
+
+.pack-preparing {
   min-height: 320px;
   display: grid;
   place-content: center;
@@ -43,48 +46,196 @@
 .pack-progress-bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #8a6f34, #d8bc78);
+  background: #c39a4f;
   transition: width 400ms ease-out;
 }
 
-/* 未開封のパック。押せることが分かるよう浮かせて呼吸させる。 */
-.pack-seal {
-  width: min(260px, 70vw);
-  padding: 34px 24px;
+/* 封筒は「閉じる」「開く」「上へ引く」を別の状態として見せる。 */
+.pack-opening-layout {
+  min-height: clamp(520px, calc(100vh - 210px), 760px);
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(270px, 350px);
+  align-items: center;
+  gap: clamp(28px, 5vw, 76px);
+  padding: 8px clamp(16px, 3vw, 42px) 22px;
+}
+
+.pack-opening-layout[data-state="ready"],
+.pack-opening-layout[data-state="dealing"],
+.pack-card-grid {
+  transform: translateY(-14px);
+}
+
+.pack-envelope-object {
+  min-width: 0;
+  min-height: 430px;
+  display: grid;
+  place-items: center;
+}
+
+.pack-envelope-object > .pack-envelope-image,
+.pack-envelope-pull-target {
+  width: min(100%, 520px);
+}
+
+.pack-envelope-image {
+  display: block;
+  max-width: 100%;
+  max-height: min(67vh, 660px);
+  object-fit: contain;
+  filter: drop-shadow(0 22px 24px rgba(0, 0, 0, 0.42));
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.pack-envelope-pull-target {
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: grab;
+  outline: none;
+  touch-action: none;
+}
+
+.pack-envelope-pull-target:active {
+  cursor: grabbing;
+}
+
+.pack-envelope-pull-target:focus-visible {
+  box-shadow: 0 0 0 3px rgba(224, 190, 113, 0.82);
+}
+
+.pack-envelope-pull-target[aria-disabled="true"] {
+  cursor: wait;
+}
+
+.pack-envelope-scene {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1127 / 1396;
+}
+
+.pack-envelope-scene > .pack-envelope-image {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pack-envelope-closed-layer,
+.pack-envelope-open-layer {
+  transition:
+    opacity 160ms ease-out,
+    transform 160ms ease-out;
+}
+
+.pack-envelope-scene.dragging .pack-envelope-closed-layer,
+.pack-envelope-scene.dragging .pack-envelope-open-layer {
+  transition: none;
+}
+
+.pack-card-bundle-window {
+  position: absolute;
+  z-index: 3;
+  inset: 0 0 auto;
+  height: 29%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pack-card-bundle {
+  position: absolute;
+  top: 50%;
+  left: 5%;
+  width: 90%;
+  height: auto;
+  transform: translateY(var(--pull-offset));
+  transition: transform 420ms cubic-bezier(0.18, 0.72, 0.22, 1);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.pack-envelope-scene.dragging .pack-card-bundle {
+  transition: none;
+}
+
+.pack-opening-layout[data-state="ready"] .pack-envelope-scene {
+  animation: pack-envelope-settle 420ms ease-out both;
+}
+
+.pack-opening-layout[data-state="dealing"] .pack-envelope-scene {
+  animation: pack-envelope-release 640ms cubic-bezier(0.2, 0.72, 0.25, 1) both;
+}
+
+.pack-envelope-scene.committing .pack-card-bundle {
+  opacity: 0;
+  transform: translateY(var(--pull-offset)) scale(1.035);
+  transition:
+    opacity 180ms ease-out 390ms,
+    transform 600ms cubic-bezier(0.16, 0.74, 0.2, 1);
+}
+
+.pack-pull-indicator {
+  position: absolute;
+  z-index: 4;
+  top: 2%;
+  left: 50%;
   display: grid;
   justify-items: center;
-  gap: 12px;
-  border: 1px solid rgba(203, 165, 91, 0.5);
-  border-radius: 16px;
-  background: linear-gradient(160deg, rgba(94, 78, 44, 0.55), rgba(37, 40, 32, 0.9));
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.45);
-  color: #e7d6ac;
-  cursor: pointer;
-  animation: pack-breathe 2.6s ease-in-out infinite;
+  gap: 2px;
+  color: #e0be71;
+  pointer-events: none;
+  transform: translateX(-50%);
 }
 
-.pack-seal:hover:not(:disabled) {
-  border-color: #d8bc78;
-  transform: translateY(-3px);
+.pack-pull-indicator strong {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
-.pack-seal strong {
-  font-size: 17px;
+.pack-opening-copy {
+  max-width: 350px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 13px;
 }
 
-.pack-seal span {
-  color: #a89c80;
-  font-size: 11px;
+.pack-stage-status {
+  padding: 6px 10px;
+  border: 1px solid rgba(203, 165, 91, 0.62);
+  border-radius: 3px;
+  background: rgba(13, 14, 10, 0.58);
+  color: #e0be71;
+  font-size: 13px;
 }
 
-.pack-seal:disabled {
-  animation: none;
-  cursor: default;
+.pack-opening-copy h3 {
+  margin: 0;
+  padding-bottom: 13px;
+  border-bottom: 1px solid rgba(210, 182, 120, 0.42);
+  color: #ead9b7;
+  font-size: 28px;
+  font-weight: 650;
+  line-height: 1.35;
 }
 
-@keyframes pack-breathe {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+.pack-opening-copy p {
+  margin: 0;
+  color: #c1af8d;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.pack-opening-copy small {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #a5977d;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 /* 「すべてめくる」は見出し右側の補助操作。 */
@@ -94,14 +245,17 @@
 
 .pack-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 290px));
+  justify-content: center;
+  gap: 22px;
 }
 
 /* カードは3D空間で裏面から表面へ回転させる。めくるのは利用者のクリック操作。 */
 .pack-card {
-  min-height: 330px;
+  height: 440px;
   perspective: 1000px;
+  animation: pack-card-deal-in 580ms cubic-bezier(0.16, 0.75, 0.22, 1) both;
+  animation-delay: calc(var(--pack-card-index) * 90ms);
 }
 
 .pack-card-inner {
@@ -119,30 +273,46 @@
 .pack-card-back {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 8px;
-  border: 1px solid rgba(203, 165, 91, 0.45);
-  border-radius: 10px;
-  background:
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 8px, transparent 8px 16px),
-    linear-gradient(150deg, rgba(88, 74, 43, 0.9), rgba(32, 35, 28, 0.95));
-  color: #c9ab6c;
-  font-size: 11px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   cursor: pointer;
   backface-visibility: hidden;
   transform: rotateY(180deg);
 }
 
-.pack-card-back:hover {
-  border-color: #d8bc78;
-  color: #e7d6ac;
+.pack-card-back > img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: fill;
 }
 
-.pack-card.rare .pack-card-back {
-  border-color: rgba(214, 176, 92, 0.75);
-  box-shadow: 0 0 18px rgba(214, 176, 92, 0.25);
+.pack-card-back-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 42px;
+  min-height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(195, 151, 67, 0.8);
+  border-radius: 4px;
+  background: #10281e;
+  color: #e1c88e;
+  font-size: 12px;
+  transform: translateX(-50%);
+  transition: border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.pack-card-back:hover .pack-card-back-hint,
+.pack-card-back:focus-visible .pack-card-back-hint {
+  border-color: #e0be72;
+  color: #fff0bf;
+  transform: translate(-50%, -3px);
 }
 
 /* めくる前のカードは操作対象にせず、読み上げからも外す。 */
@@ -155,23 +325,43 @@
 }
 
 .pack-card-face {
+  position: relative;
   height: 100%;
-  padding: 13px;
-  display: grid;
-  grid-template-rows: auto auto auto auto auto 1fr auto;
-  gap: 7px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.035);
+  overflow: hidden;
+  border: 1px solid rgba(195, 151, 67, 0.72);
+  border-radius: 6px;
+  background: #10281e;
   backface-visibility: hidden;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.36);
 }
 
 .pack-card.rare .pack-card-face {
-  border-color: rgba(214, 176, 92, 0.7);
-  background:
-    linear-gradient(160deg, rgba(120, 98, 48, 0.3), rgba(255, 255, 255, 0.03) 55%),
-    rgba(255, 255, 255, 0.035);
-  box-shadow: 0 0 0 1px rgba(214, 176, 92, 0.18), 0 14px 26px rgba(0, 0, 0, 0.4);
+  border-color: #dcb45d;
+  box-shadow: 0 0 0 1px rgba(220, 180, 93, 0.32), 0 18px 34px rgba(0, 0, 0, 0.42);
+}
+
+.pack-card.rare.celebrating .pack-card-face {
+  animation: pack-rare-card-reveal 900ms ease-out 460ms both;
+}
+
+.pack-card-face-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.pack-card-face-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  padding: 22px 21px 20px;
+  display: grid;
+  grid-template-rows: auto 176px 1fr auto;
+  gap: 10px;
 }
 
 .pack-card-badges {
@@ -182,54 +372,129 @@
 
 .pack-genre,
 .pack-rare {
-  padding: 3px 8px;
+  min-height: 24px;
+  padding: 3px 7px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border-radius: 999px;
+  border-radius: 3px;
   font-size: 10px;
 }
 
 .pack-genre {
   min-width: 0;
-  border: 1px solid var(--line);
-  color: #a99f8e;
+  border: 1px solid rgba(71, 53, 30, 0.28);
+  background: #e7dcc4;
+  color: #493d2b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .pack-rare {
-  border: 1px solid rgba(214, 176, 92, 0.65);
-  background: rgba(214, 176, 92, 0.14);
-  color: #e2c479;
+  border: 1px solid #a74f37;
+  background: #8f3d2f;
+  color: #fff2d8;
   font-weight: 700;
 }
 
-.pack-card-face > img {
-  width: 88px;
-  height: 130px;
+.pack-card-cover {
+  width: 118px;
+  height: 176px;
   justify-self: center;
   object-fit: cover;
-  border-radius: 4px;
-  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(241, 226, 192, 0.78);
+  border-radius: 2px;
+  background: #e7dcc4;
+  box-shadow: 0 11px 20px rgba(0, 0, 0, 0.48);
 }
 
-.pack-card-face h3 {
-  margin: 3px 0 0;
-  color: #e9dfcd;
+.pack-card.revealed .pack-card-cover {
+  animation: pack-cover-rise 520ms cubic-bezier(0.18, 0.75, 0.2, 1) 430ms both;
+}
+
+.pack-rare-celebration {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 3px;
+  color: #fff0bd;
+  pointer-events: none;
+  animation: pack-rare-message 1.35s ease-out 500ms both;
+}
+
+.pack-rare-celebration strong,
+.pack-rare-celebration span {
+  padding: 5px 10px;
+  border: 1px solid rgba(224, 190, 113, 0.82);
+  border-radius: 3px;
+  background: #183328;
+}
+
+.pack-rare-celebration strong {
+  color: #ffe3a0;
+  font-size: 16px;
+}
+
+.pack-rare-celebration span {
+  color: #e1c891;
+  font-size: 11px;
+}
+
+.pack-rare-spark {
+  position: absolute;
+  color: #e0be71;
+  filter: drop-shadow(0 0 5px rgba(224, 190, 113, 0.45));
+}
+
+.pack-rare-spark-one {
+  top: 16%;
+  left: 13%;
+  animation: pack-rare-spark 900ms ease-out 490ms both;
+}
+
+.pack-rare-spark-two {
+  top: 24%;
+  right: 12%;
+  animation: pack-rare-spark 800ms ease-out 600ms both;
+}
+
+.pack-rare-spark-three {
+  right: 19%;
+  bottom: 18%;
+  animation: pack-rare-spark 760ms ease-out 720ms both;
+}
+
+.pack-card-copy {
+  min-height: 0;
+  padding: 8px 10px;
+  overflow: hidden;
+  border: 1px solid rgba(71, 53, 30, 0.25);
+  border-radius: 3px;
+  background: #e7dcc4;
+  color: #332c20;
+}
+
+.pack-card-copy h3 {
+  margin: 0;
+  color: #292318;
   font-size: 13px;
   line-height: 1.45;
 }
 
-.pack-card-face > p {
-  margin: 0;
-  color: #a99f8e;
+.pack-card-copy > p {
+  margin: 4px 0 0;
+  color: #655a48;
   font-size: 11px;
 }
 
 .pack-card-meta {
-  color: #8d8474;
+  display: block;
+  margin-top: 3px;
+  color: #796c56;
   font-size: 10px;
 }
 
@@ -237,49 +502,218 @@
 .pack-card-description {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  margin: 0;
-  color: #9d947f;
+  color: #655a48;
   font-size: 10px;
-  line-height: 1.65;
+  line-height: 1.5;
 }
 
-.pack-card-face footer {
+.pack-card-face-content footer {
   display: flex;
   justify-content: flex-end;
   gap: 7px;
   align-self: end;
 }
 
-.pack-card-face footer a,
-.pack-card-face footer button {
+.pack-card-face-content footer a,
+.pack-card-face-content footer button {
   min-height: 32px;
   padding: 0 11px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #cfbd98;
+  border: 1px solid rgba(195, 151, 67, 0.55);
+  border-radius: 4px;
+  background: #163426;
+  color: #e2ca91;
   font-size: 11px;
   text-decoration: none;
   cursor: pointer;
 }
 
-.pack-card-face footer button {
-  border-color: rgba(117, 164, 105, 0.45);
-  color: #d9ead2;
+@keyframes pack-envelope-settle {
+  0% {
+    opacity: 0.35;
+    transform: translateY(10px);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pack-envelope-release {
+  0% {
+    transform: translateY(0);
+  }
+  45% {
+    transform: translateY(5px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes pack-card-deal-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-84px) scale(0.94);
+  }
+  72% {
+    opacity: 1;
+    transform: translateY(7px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pack-cover-rise {
+  0% {
+    opacity: 0.35;
+    transform: translateY(10px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pack-rare-card-reveal {
+  0% {
+    box-shadow: 0 18px 34px rgba(0, 0, 0, 0.42);
+    transform: scale(0.97);
+  }
+  45% {
+    box-shadow:
+      0 0 0 3px rgba(220, 180, 93, 0.55),
+      0 0 28px rgba(220, 180, 93, 0.42),
+      0 18px 34px rgba(0, 0, 0, 0.42);
+    transform: scale(1.025);
+  }
+  100% {
+    box-shadow: 0 0 0 1px rgba(220, 180, 93, 0.32), 0 18px 34px rgba(0, 0, 0, 0.42);
+    transform: scale(1);
+  }
+}
+
+@keyframes pack-rare-message {
+  0%,
+  18% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  38%,
+  72% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-7px) scale(1);
+  }
+}
+
+@keyframes pack-rare-spark {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-16deg);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.2) rotate(6deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8) rotate(16deg);
+  }
+}
+
+.pack-card-face-content footer button {
+  border-color: #b88942;
+  background: #b88942;
+  color: #14241b;
+  font-weight: 700;
+}
+
+@media (max-width: 980px) {
+  .pack-opening-layout {
+    grid-template-columns: minmax(300px, 1fr) minmax(240px, 300px);
+    gap: 24px;
+    padding-inline: 4px;
+  }
+
+  .pack-envelope-object > .pack-envelope-image,
+  .pack-envelope-pull-target {
+    width: min(100%, 430px);
+  }
+}
+
+@media (max-width: 720px) {
+  .pack-opening-layout {
+    min-height: auto;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 0 0 24px;
+  }
+
+  .pack-opening-layout[data-state="ready"],
+  .pack-opening-layout[data-state="dealing"],
+  .pack-card-grid {
+    transform: translateY(-6px);
+  }
+
+  .pack-envelope-object {
+    min-height: 300px;
+  }
+
+  .pack-envelope-object > .pack-envelope-image,
+  .pack-envelope-pull-target {
+    width: min(78vw, 330px);
+  }
+
+  .pack-opening-copy {
+    max-width: none;
+    align-items: center;
+    padding-inline: 8px;
+    text-align: center;
+  }
+
+  .pack-opening-copy h3 {
+    width: 100%;
+    font-size: 22px;
+  }
+
 }
 
 /* 動きを減らす設定では、回転をやめて即座に切り替える。 */
 @media (prefers-reduced-motion: reduce) {
-  .pack-seal {
-    animation: none;
+  .pack-card-bundle {
+    transition: none;
+  }
+
+  .pack-envelope-closed-layer,
+  .pack-envelope-open-layer {
+    transition: none;
   }
 
   .pack-card-inner {
     transition: none;
+  }
+
+  .pack-opening-layout[data-state="ready"] .pack-envelope-scene,
+  .pack-opening-layout[data-state="dealing"] .pack-envelope-scene,
+  .pack-card,
+  .pack-card.revealed .pack-card-cover,
+  .pack-card.rare.celebrating .pack-card-face,
+  .pack-rare-celebration,
+  .pack-rare-spark {
+    animation: none;
   }
 }

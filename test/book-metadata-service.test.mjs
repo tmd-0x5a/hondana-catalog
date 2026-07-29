@@ -100,3 +100,34 @@ test("openBDとGoogle Booksの表紙候補を両方キャッシュサービス�
   ]);
   assert.equal(metadata.coverUrl, "/covers/9780306406157.webp");
 });
+
+test("パック候補の紹介文と書影有無をopenBDへ一括照会する", async () => {
+  const service = new BookMetadataService({
+    httpClient: {
+      async getJson() {
+        return [
+          {
+            summary: { cover: "https://cover.openbd.jp/covered.jpg" },
+            onix: { CollateralDetail: { TextContent: [{ TextType: "03", Text: "紹介あり" }] } },
+          },
+          { summary: { cover: "" } },
+        ];
+      },
+    },
+    coverService: { async ensureCachedCover() { return ""; } },
+  });
+
+  const details = await service.findPackCandidateDetails([
+    "9780306406157",
+    "9784088821207",
+  ]);
+
+  assert.deepEqual(details.get("9780306406157"), {
+    description: "紹介あり",
+    hasCover: true,
+  });
+  assert.deepEqual(details.get("9784088821207"), {
+    description: "",
+    hasCover: false,
+  });
+});

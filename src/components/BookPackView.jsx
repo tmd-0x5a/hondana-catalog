@@ -3,41 +3,71 @@ import { BookOpen, ExternalLink, Gift, Plus, Sparkles } from "lucide-react";
 
 import { showFallbackCover } from "../cover-image.js";
 import { loadRevealedKeys, saveRevealedKeys } from "../pack-reveal-store.js";
+import { PackOpeningStage } from "./PackOpeningStage.jsx";
 
 function cardKey(card, index) {
   return String(card.isbn || `${card.title}-${index}`);
 }
 
 /** 裏向きのカード。クリックで表返す。 */
-function PackCard({ card, revealed, busy, onReveal, onAdd }) {
+function PackCard({ card, revealed, busy, celebrate, index, onReveal, onAdd }) {
   return (
-    <article className={`pack-card ${card.rare ? "rare" : ""} ${revealed ? "revealed" : ""}`}>
+    <article
+      className={`pack-card ${card.rare ? "rare" : ""} ${revealed ? "revealed" : ""} ${celebrate ? "celebrating" : ""}`}
+      style={{ "--pack-card-index": index }}
+    >
       <div className="pack-card-inner">
         <button
-          aria-label={`${card.rare ? "レアカード" : "カード"}をめくる`}
+          aria-label="カードをめくる"
           className="pack-card-back"
           onClick={onReveal}
           type="button"
         >
-          <BookOpen size={28} />
-          <span>めくる</span>
+          <img alt="" aria-hidden="true" src="/assets/pack-card-back.png" />
+          <span className="pack-card-back-hint"><BookOpen size={20} />めくる</span>
         </button>
         <div className="pack-card-face" aria-hidden={!revealed}>
-          <div className="pack-card-badges">
-            {card.rare && <span className="pack-rare"><Sparkles size={11} />レア</span>}
-            <span className="pack-genre">{card.reason || card.genre}</span>
+          <img className="pack-card-face-art" alt="" aria-hidden="true" src="/assets/pack-card-back.png" />
+          {card.rare && celebrate && (
+            <div className="pack-rare-celebration" role="status">
+              <Sparkles className="pack-rare-spark pack-rare-spark-one" size={34} aria-hidden="true" />
+              <Sparkles className="pack-rare-spark pack-rare-spark-two" size={24} aria-hidden="true" />
+              <Sparkles className="pack-rare-spark pack-rare-spark-three" size={20} aria-hidden="true" />
+              <strong>レア発見</strong>
+              <span>{card.reason}</span>
+            </div>
+          )}
+          <div className="pack-card-face-content">
+            <div className="pack-card-badges">
+              {card.rare && (
+                <span
+                  className="pack-rare"
+                  title="未所蔵ジャンル、または所蔵数が最少のジャンルから選ばれた1枚"
+                >
+                  <Sparkles size={11} />レア
+                </span>
+              )}
+              <span className="pack-genre">{card.reason || card.genre}</span>
+            </div>
+            <img
+              className="pack-card-cover"
+              alt={`${card.title}の表紙`}
+              onError={showFallbackCover}
+              src={card.coverUrl || "/assets/selected-cover.png"}
+            />
+            <div className="pack-card-copy">
+              <h3>{card.title}</h3>
+              <p>{card.author || "著者情報なし"}</p>
+              <span className="pack-card-meta">
+                {[card.publisher, card.published].filter(Boolean).join(" / ") || "書誌情報なし"}
+              </span>
+              {card.description && <p className="pack-card-description">{card.description}</p>}
+            </div>
+            <footer>
+              {card.url && <a href={card.url} rel="noreferrer" target="_blank" tabIndex={revealed ? 0 : -1}><ExternalLink size={14} />NDL</a>}
+              <button disabled={busy || !revealed} onClick={() => onAdd(card)} type="button"><Plus size={15} />本棚に追加</button>
+            </footer>
           </div>
-          <img alt={`${card.title}の表紙`} onError={showFallbackCover} src={card.coverUrl || "/assets/selected-cover.png"} />
-          <h3>{card.title}</h3>
-          <p>{card.author || "著者情報なし"}</p>
-          <span className="pack-card-meta">
-            {[card.publisher, card.published].filter(Boolean).join(" / ") || "書誌情報なし"}
-          </span>
-          {card.description && <p className="pack-card-description">{card.description}</p>}
-          <footer>
-            {card.url && <a href={card.url} rel="noreferrer" target="_blank" tabIndex={revealed ? 0 : -1}><ExternalLink size={14} />NDL</a>}
-            <button disabled={busy || !revealed} onClick={() => onAdd(card)} type="button"><Plus size={15} />本棚に追加</button>
-          </footer>
         </div>
       </div>
     </article>
@@ -79,13 +109,31 @@ export function BookPackView({ pack, busy, error, onOpen, onAdd }) {
   const cards = pack?.cards || [];
   const date = pack?.date || "";
   const [revealedKeys, setRevealedKeys] = useState([]);
+  const [celebratingKey, setCelebratingKey] = useState("");
 
-  // 日付が変わった、または別のパックを読み込んだときに、めくり済みの記録を読み直す。
+  // 未開封へ戻したパックでは古いめくり記録を破棄し、開封済みなら途中状態を復元する。
   useEffect(() => {
-    setRevealedKeys(date ? loadRevealedKeys(date) : []);
-  }, [date]);
+    if (!date) {
+      setRevealedKeys([]);
+      return;
+    }
+    if (!opened) {
+      setRevealedKeys([]);
+      saveRevealedKeys(date, []);
+      return;
+    }
+    setRevealedKeys(loadRevealedKeys(date));
+  }, [date, opened]);
 
-  function revealCard(key) {
+  useEffect(() => {
+    if (!celebratingKey) return undefined;
+    const timerId = window.setTimeout(() => setCelebratingKey(""), 1900);
+    return () => window.clearTimeout(timerId);
+  }, [celebratingKey]);
+
+  function revealCard(key, rare) {
+    if (revealedKeys.includes(key)) return;
+    if (rare) setCelebratingKey(key);
     setRevealedKeys((current) => {
       if (current.includes(key)) return current;
       const next = [...current, key];
@@ -98,6 +146,8 @@ export function BookPackView({ pack, busy, error, onOpen, onAdd }) {
     const keys = cards.map((card, index) => cardKey(card, index));
     setRevealedKeys(keys);
     saveRevealedKeys(date, keys);
+    const rareIndex = cards.findIndex((card) => card.rare);
+    if (rareIndex >= 0) setCelebratingKey(cardKey(cards[rareIndex], rareIndex));
   }
 
   const remaining = cards.filter((card, index) => !revealedKeys.includes(cardKey(card, index))).length;
@@ -106,11 +156,11 @@ export function BookPackView({ pack, busy, error, onOpen, onAdd }) {
     <section className="book-pack-view" aria-label="今日の本のパック">
       <header className="pack-header">
         <div>
-          <span><Sparkles size={16} />蔵書のジャンルから抽選</span>
-          <h2>本のパック</h2>
+          <span><Sparkles size={16} />1日1パック</span>
+          <h2>今日の本パック</h2>
           <p>
             {!opened
-              ? "1日1パック。蔵書のジャンル比率で4冊、未開拓のジャンルから1冊が入っています。"
+              ? "封筒を開き、蔵書のジャンルから選ばれた5冊を引き出してください。"
               : remaining > 0
                 ? `カードをクリックしてめくってください。残り${remaining}枚。`
                 : "すべてめくりました。次のパックは明日開けます。"}
@@ -125,20 +175,14 @@ export function BookPackView({ pack, busy, error, onOpen, onAdd }) {
 
       {preparing ? (
         <PackProgress progress={pack?.progress} />
-      ) : !opened ? (
-        <div className="pack-sealed">
-          <button className="pack-seal" disabled={busy || !cards.length} onClick={onOpen} type="button">
-            <Gift size={54} />
-            <strong>パックを開ける</strong>
-            <span>{cards.length}冊入り</span>
-          </button>
-        </div>
       ) : cards.length === 0 ? (
         <div className="pack-empty">
           <BookOpen size={34} />
           <strong>今日は候補を集められませんでした</strong>
           <span>外部の書誌サービスが混み合っている可能性があります。明日また試してください。</span>
         </div>
+      ) : !opened ? (
+        <PackOpeningStage busy={busy} cardCount={cards.length} key={date || "today"} onOpen={onOpen} />
       ) : (
         <div className="pack-card-grid">
           {cards.map((card, index) => {
@@ -147,9 +191,11 @@ export function BookPackView({ pack, busy, error, onOpen, onAdd }) {
               <PackCard
                 busy={busy}
                 card={card}
+                celebrate={celebratingKey === key}
+                index={index}
                 key={key}
                 onAdd={onAdd}
-                onReveal={() => revealCard(key)}
+                onReveal={() => revealCard(key, card.rare)}
                 revealed={revealedKeys.includes(key)}
               />
             );

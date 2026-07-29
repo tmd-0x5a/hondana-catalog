@@ -64,7 +64,8 @@
 - 実本と電子書籍を分けて管理し、保管場所や電子書籍ストアのリンクを保存
 - マンガ、小説、技術書、ビジネス書などのカテゴリ絞り込み
 - シリーズ名と巻数の管理、新刊候補リスト、アプリ内リマインダー
-- 蔵書のジャンルから未所持の本を紹介する「本のパック」（1日1回・5枚、うち1枚は未開拓ジャンルのレア枠。カードは1枚ずつクリックでめくる）
+- 蔵書の傾向から未所持の本を紹介する「本のパック」。書店の紙封筒をドラッグで開封し、裏向きに並ぶ5枚を1枚ずつ選んでめくる
+- 5枚中1枚は、自分の本棚で未所蔵または所蔵数が最少のジャンルから選ぶレア枠。めくるまで通常カードと区別できず、発見時だけ専用演出を表示
 - 名前、著者、シリーズ、保管場所、新着順による並べ替え
 - ドラッグ操作による手動並べ替え
 - 本屋で重複購入を防ぐための、iPhone向け持ち出し本棚HTML
@@ -149,54 +150,18 @@ ISBNや検索語を使い、次の外部サービスから取得できた情報�
 
 ## 開発
 
-開発時のみNode.js 24以上とnpmを用意し、リポジトリのフォルダーで実行します。配布EXEを使う場合、Node.jsのインストールは不要です。
-
-開発・保守資料:
-
-- [要件定義書](docs/REQUIREMENTS.md)
-- [機能仕様書](docs/FUNCTIONAL-SPEC.md)
-- [画面仕様書・画面遷移図](docs/SCREEN-SPEC.md)
-- [DB設計書](docs/DATA-DESIGN.md)
-- [API仕様書](docs/API-SPEC.md)
-- [テスト仕様書](docs/TEST-SPEC.md)
-- [アーキテクチャ資料](docs/ARCHITECTURE.md)
-- [セキュリティ設計と残余リスク](docs/SECURITY.md)
-- [外部Skillの安全運用](docs/SKILL-SECURITY.md)
-- [リファクタリング記録（2026年7月）](docs/REFACTORING-2026-07.md)
+配布EXEの利用にNode.jsは不要です。ソースから開発する場合は、Windows、Node.js 24以上、npmを用意します。
 
 ```powershell
-npm install
+npm ci
 npm run desktop
 ```
 
-開発中の最新版を独立したElectron画面で確認するコマンドは `npm run desktop` です。作成済みの配布版は `release\Hondana-Catalog-Portable-0.5.1.exe` を直接実行します。旧版とは別ファイルなので混在時も区別できます。
-
-コード品質の検査はまとめて実行できます。
-
 ```powershell
-npm run check   # lint + 型検査 + テスト + ビルド
+npm run check
 ```
 
-`npm run lint`（ESLint）、`npm run typecheck`（TypeScriptによるJSDoc型検査）、`npm test` は個別にも実行できます。mainへのpushとPull RequestではGitHub Actionsが同じ検査を自動実行します。
-
-`v*`タグをGitHubへプッシュすると、GitHub ActionsがWindows上で監査、テスト、ポータブル版ビルド、成果物証明を実行し、EXEとSHA-256ファイルをGitHub Releasesへ公開します。配布ツールの依存は `packaging/` に隔離され、通常のアプリ依存には含まれません。
-
-フロントエンドとAPIサーバーを分けて起動する場合は、別々のターミナルで実行します。
-
-```powershell
-npm run server
-npm run dev
-```
-
-`npm run dev` はフロントエンドのみの起動です。`npm run server` を併用しないと、蔵書一覧・表紙・バーコード登録などAPIを使う機能はすべて「オフライン」になります。1コマンドで確認したい場合は `npm run app`（ビルド + APIサーバー）を使い、`http://127.0.0.1:8080` を開いてください。
-
-Windows向けポータブル版を作成します。
-
-```powershell
-npm run dist:win
-```
-
-生成物は `release/` に出力されます。
+環境構築、開発サーバー、テスト、ポータブルEXE、Pull Request、リリース手順は [CONTRIBUTING.md](CONTRIBUTING.md) にまとめています。設計資料は [開発・保守資料の目次](docs/README.md) から参照できます。
 
 ## プライバシーと安全上の注意
 

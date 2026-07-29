@@ -76,23 +76,38 @@ export function drawGenres(books, slots, random) {
 }
 
 /**
- * レア枠のジャンルを選ぶ。未所蔵のジャンルを優先し、なければ最も冊数が少ないジャンルを使う。
+ * レア枠のジャンルと選定理由を決める。
+ * 未所蔵ジャンルを優先し、すべて所蔵済みなら最も冊数が少ないジャンルを使う。
  *
  * @param {import("../src/types.js").Book[]} books 全蔵書。
  * @param {() => number} random 乱数生成関数。ゼロ以上、一未満の値を返す。
- * @returns {string} レア枠のジャンル。
+ * @returns {{genre: string, reason: string}} レア枠のジャンルと画面表示用の理由。
  */
-export function drawRareGenre(books, random) {
+export function drawRareSlot(books, random) {
   const counts = new Map(BOOK_CATEGORIES.map((genre) => [genre, 0]));
   for (const book of books) {
     const genre = BOOK_CATEGORIES.includes(book.category) ? book.category : "その他";
     counts.set(genre, counts.get(genre) + 1);
   }
   const unowned = [...counts].filter(([, count]) => count === 0).map(([genre]) => genre);
-  if (unowned.length) return unowned[Math.floor(random() * unowned.length) % unowned.length];
+  if (unowned.length) {
+    const genre = unowned[Math.floor(random() * unowned.length) % unowned.length];
+    return { genre, reason: `未所蔵の${genre}` };
+  }
 
   const fewest = [...counts].sort((left, right) => left[1] - right[1])[0];
-  return fewest[0];
+  return { genre: fewest[0], reason: `所蔵が少ない${fewest[0]}` };
+}
+
+/**
+ * 既存の呼び出し向けに、レア枠のジャンルだけを返す。
+ *
+ * @param {import("../src/types.js").Book[]} books 全蔵書。
+ * @param {() => number} random 乱数生成関数。
+ * @returns {string} レア枠のジャンル。
+ */
+export function drawRareGenre(books, random) {
+  return drawRareSlot(books, random).genre;
 }
 
 /**
@@ -209,8 +224,9 @@ export class BookPackService {
   async #buildCards() {
     const books = await this.repository.readBooks();
     const slots = [
-      ...drawGenres(books, RECOMMENDED_SLOTS, this.random).map((genre) => ({ genre, rare: false })),
-      { genre: drawRareGenre(books, this.random), rare: true },
+      ...drawGenres(books, RECOMMENDED_SLOTS, this.random)
+        .map((genre) => ({ genre, rare: false, reason: "" })),
+      { ...drawRareSlot(books, this.random), rare: true },
     ];
 
     // 蔵書のISBNはISBN-13で保存されるが、旧データの表記ゆれに備えて素の桁も除外対象へ入れる。
@@ -252,7 +268,7 @@ export class BookPackService {
   }
 
   /** ジャンル枠ごとに候補を探し、所蔵済みと既出を除いて1冊を選ぶ。紹介文のある本を優先する。 */
-  async #pickCandidate({ genre, rare }, books, excludedIsbns, excludedTitles) {
+  async #pickCandidate({ genre, rare, reason: slotReason }, books, excludedIsbns, excludedTitles) {
     for (let attempt = 0; attempt < MAX_SLOT_ATTEMPTS; attempt += 1) {
       if (attempt > 0) await this.pause(CATALOG_INTERVAL_MS);
       // 回を追うごとに条件を緩め、最後は必ず結果が返る素朴な検索へ落とす。
@@ -264,7 +280,7 @@ export class BookPackService {
         found = rare
           ? {
             candidates: await this.catalogService.findBooksByKeyword(GENRE_KEYWORDS[genre] || genre, { offset }),
-            reason: `未開拓の${genre}`,
+            reason: slotReason || `未所蔵の${genre}`,
           }
           : await this.#searchOwnedGenre(genre, books, offset, attempt);
       } catch {
@@ -278,24 +294,35 @@ export class BookPackService {
         .map((candidate) => ({ ...candidate, isbn: normalizedCandidateIsbn(candidate.isbn) }));
       if (!usable.length) continue;
 
-      const chosen = await this.#chooseWithDescription(usable);
+      const chosen = await this.#choosePackCandidate(usable);
       return { ...chosen, genre, rare, reason: found.reason };
     }
     return null;
   }
 
   /**
-   * 候補の紹介文をopenBDへ一度だけ問い合わせ、紹介文を持つ本から優先的に選ぶ。
-   * 紹介文付きが無ければ従来どおり無作為に選ぶ。
+   * openBDを一括照会し、書影あり、紹介文ありの順でパック候補を絞る。
+   * 書影情報を取得できない場合も、NDL候補からの選定は継続する。
    */
-  async #chooseWithDescription(candidates) {
-    const descriptions = typeof this.metadataService.findDescriptionsByIsbns === "function"
-      ? await this.metadataService.findDescriptionsByIsbns(candidates.map((candidate) => candidate.isbn))
-      : new Map();
-    const described = candidates.filter((candidate) => descriptions.get(candidate.isbn));
-    const pool = described.length ? described : candidates;
+  async #choosePackCandidate(candidates) {
+    const isbns = candidates.map((candidate) => candidate.isbn);
+    let details = new Map();
+    if (typeof this.metadataService.findPackCandidateDetails === "function") {
+      details = await this.metadataService.findPackCandidateDetails(isbns);
+    } else if (typeof this.metadataService.findDescriptionsByIsbns === "function") {
+      const descriptions = await this.metadataService.findDescriptionsByIsbns(isbns);
+      details = new Map([...descriptions].map(([isbn, description]) => [
+        isbn,
+        { description, hasCover: false },
+      ]));
+    }
+
+    const covered = candidates.filter((candidate) => details.get(candidate.isbn)?.hasCover);
+    const coverPool = covered.length ? covered : candidates;
+    const described = coverPool.filter((candidate) => details.get(candidate.isbn)?.description);
+    const pool = described.length ? described : coverPool;
     const chosen = pool[Math.floor(this.random() * pool.length) % pool.length];
-    return { ...chosen, description: descriptions.get(chosen.isbn) || "" };
+    return { ...chosen, description: details.get(chosen.isbn)?.description || "" };
   }
 
   /** 蔵書のあるジャンルは、同ジャンルの出版社を手がかりに探す。出版社がなければ著者で探す。 */
