@@ -116,7 +116,7 @@ BookCreateの任意項目から`isbn`を除いた差分。空オブジェクト�
 - パックはサーバー起動時にバックグラウンドで生成を始める。未生成の日にGETすると生成を開始して`preparing`を返すため、クライアントは`ready`になるまで数秒間隔で取り直す。
 - `progress`は`{completed, total}`。生成中は候補が決まるたびに`completed`が進む。
 - `date`はローカル日付のYYYY-MM-DD。同じ日の2回目以降は保存済みパックをそのまま返し、外部APIを呼ばない。生成中の同時要求も1つの生成処理へまとめる。
-- `cards`は最大5件で、`isbn`、`title`、`author`、`publisher`、`published`、`coverUrl`、`description`、`url`、`genre`、`rare`、`reason`を含む。`rare`がtrueのカードは蔵書にないジャンルから選ばれた1枚。`preparing`の間は空配列。
+- `cards`は最大5件で、`isbn`、`title`、`author`、`publisher`、`published`、`coverUrl`、`description`、`url`、`genre`、`rare`、`reason`を含む。`rare`がtrueのカードは未所蔵ジャンル、または全ジャンル所蔵時に所蔵数が最少のジャンルから選ばれた1枚。`reason`は選定根拠を表示する。`preparing`の間は空配列。
 - `description`は紹介文。openBDまたはGoogle Booksから取得できなかった場合は空文字。
 - `openedAt`は開封済みならISO 8601日時、未開封ならnull。POSTは生成完了を待ってから開封し、初回だけ日時を記録する。
 - 所蔵済みISBNと同名タイトルは候補から除外する。カードの追加は`POST /api/isbn`を使う。

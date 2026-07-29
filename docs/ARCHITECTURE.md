@@ -43,7 +43,7 @@ flowchart LR
 | `server/windows-ocr-service.mjs` / `windows-ocr.ps1` | 検証済み画像の一時保存、Windows内蔵OCR呼び出し、確実な一時ファイル削除 |
 | `server/book-screenshot-import-service.mjs` | OCR行の正規化、NDLへの逐次候補検索、確認画面用候補の生成 |
 | `server/series-service.mjs` | 所持巻と刊行巻の比較、シリーズ追跡結果の保存 |
-| `server/book-pack-service.mjs` | 蔵書のジャンル比率とレア枠の抽選、候補探索、紹介文優先、日次パックの保存 |
+| `server/book-pack-service.mjs` | 蔵書のジャンル比率とレア枠の抽選、候補探索、書影・紹介文優先、日次パックの保存 |
 | `server/upload-service.mjs` | 画像保存、解析状態、アップロード履歴、ISBN確定 |
 | `server/library-repository.mjs` | `books.json`と`uploads.json`の保存境界、初期データ作成、日次スナップショットの世代管理 |
 | `server/book-metadata-service.mjs` | openBDとGoogle Booksの書誌統合 |
@@ -62,6 +62,7 @@ flowchart LR
 | `src/bulk-import-model.js` | ISBN一覧とタブ区切り書誌をAPI入力へ変換する純粋関数 |
 | `src/library-preferences.js` | 本の大きさ、見出し、シリーズ集約のlocalStorage境界 |
 | `src/pack-reveal-store.js` | めくったカードを日付ごとに覚えるlocalStorage境界 |
+| `src/components/PackOpeningStage.jsx` | 封筒の開口とカード束の引き出しを分けたポインタ操作、開封確定の状態遷移 |
 | `src/MobileUpload.jsx` | iPhone撮影、端末内バーコード解析、LAN送信、持ち出し本棚 |
 | `src/api.js` | JSON APIの共通エラー処理 |
 | `src/types.js` | JSDocで共有するBook、Upload、Series、Filterのデータ契約 |

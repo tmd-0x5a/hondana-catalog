@@ -107,9 +107,25 @@ export class BookMetadataService {
    * @returns {Promise<Map<string, string>>} 紹介文を取得できたISBNだけのMap。
    */
   async findDescriptionsByIsbns(isbns) {
+    const details = await this.findPackCandidateDetails(isbns);
+    return new Map(
+      [...details]
+        .filter(([, detail]) => detail.description)
+        .map(([isbn, detail]) => [isbn, detail.description]),
+    );
+  }
+
+  /**
+   * パック候補の紹介文と書影有無をopenBDへ一括照会する。
+   * 候補選定のための軽量な事前確認で、画像本体の取得は行わない。
+   *
+   * @param {string[]} isbns 正規化済みISBN-13。最多50件。
+   * @returns {Promise<Map<string, {description: string, hasCover: boolean}>>} ISBNごとの候補情報。
+   */
+  async findPackCandidateDetails(isbns) {
     const targets = [...new Set(isbns.filter(Boolean))].slice(0, 50);
-    const descriptions = new Map();
-    if (!targets.length) return descriptions;
+    const details = new Map();
+    if (!targets.length) return details;
 
     try {
       const data = await this.httpClient.getJson(
@@ -118,13 +134,17 @@ export class BookMetadataService {
       );
       const records = Array.isArray(data) ? data : [];
       records.forEach((record, index) => {
-        const description = openBdDescription(record);
-        if (description) descriptions.set(targets[index], description);
+        if (!record) return;
+        const coverUrl = secureImageUrl(record.summary?.cover || "");
+        details.set(targets[index], {
+          description: openBdDescription(record),
+          hasCover: isAllowedCoverUrl(coverUrl),
+        });
       });
     } catch {
-      // 紹介文の事前確認は任意処理なので、失敗しても候補選定を続行する。
+      // 候補の事前確認は任意処理なので、失敗しても候補選定を続行する。
     }
-    return descriptions;
+    return details;
   }
 
   #fallbackNote(sources) {
