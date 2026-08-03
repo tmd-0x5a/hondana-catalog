@@ -32,7 +32,7 @@
     "@zxing/library": "^0.23.0",
     "express": "^5.2.1",
     "fast-xml-parser": "^5.10.1",
-    "lucide-react": "^1.27.0",
+    "lucide-react": "^1.28.0",
     "multer": "^2.2.0",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
