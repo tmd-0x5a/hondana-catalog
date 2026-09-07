@@ -11,6 +11,6 @@
     "build:windows": "electron-builder --projectDir .. --win portable --x64 --publish never"
   },
   "devDependencies": {
-    "electron-builder": "26.15.7"
+    "electron-builder": "26.16.0"
   }
 }
